@@ -5,11 +5,25 @@ export default function AuthLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: "#fff" },
+        presentation: "modal",
+        animation: "slide_from_bottom",
+        contentStyle: { backgroundColor: "transparent" },
       }}
     >
-      <Stack.Screen name="login" />
-      <Stack.Screen name="register" />
+      <Stack.Screen
+        name="login"
+        options={{
+          presentation: "transparentModal",
+          animation: "slide_from_bottom",
+        }}
+      />
+      <Stack.Screen
+        name="register"
+        options={{
+          presentation: "transparentModal",
+          animation: "slide_from_bottom",
+        }}
+      />
       <Stack.Screen name="verify" />
     </Stack>
   );

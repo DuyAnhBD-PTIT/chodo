@@ -53,6 +53,39 @@ const CreatePostSheet = forwardRef<CreatePostSheetRef, CreatePostSheetProps>(
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const hasUnsavedChanges = () => {
+      return (
+        title.trim() !== "" ||
+        description.trim() !== "" ||
+        price.trim() !== "" ||
+        address.trim() !== "" ||
+        categoryId !== "" ||
+        images.length > 0
+      );
+    };
+
+    const handleClose = () => {
+      if (hasUnsavedChanges()) {
+        Alert.alert(
+          "Bạn có thay đổi chưa lưu",
+          "Bạn có chắc muốn thoát? Bài đăng sẽ không được lưu.",
+          [
+            { text: "Tiếp tục chỉnh sửa", style: "cancel" },
+            {
+              text: "Thoát",
+              style: "destructive",
+              onPress: () => {
+                resetForm();
+                bottomSheetRef.current?.close();
+              },
+            },
+          ]
+        );
+      } else {
+        bottomSheetRef.current?.close();
+      }
+    };
+
     const snapPoints = useMemo(() => ["90%"], []);
 
     useImperativeHandle(ref, () => ({
@@ -146,8 +179,6 @@ const CreatePostSheet = forwardRef<CreatePostSheetRef, CreatePostSheetProps>(
       try {
         setIsSubmitting(true);
 
-        // For now, use local URIs as image URLs
-        // In production, you should upload to a server first
         const imageUrls = images;
 
         // Get category name
@@ -194,7 +225,12 @@ const CreatePostSheet = forwardRef<CreatePostSheetRef, CreatePostSheetProps>(
         ref={bottomSheetRef}
         index={-1}
         snapPoints={snapPoints}
-        enablePanDownToClose
+        enablePanDownToClose={true}
+        onChange={(index) => {
+          if (index === -1) {
+            handleClose();
+          }
+        }}
         backgroundStyle={{
           backgroundColor: colors.cardBackground,
         }}
@@ -211,10 +247,7 @@ const CreatePostSheet = forwardRef<CreatePostSheetRef, CreatePostSheetProps>(
             <Text style={[styles.headerTitle, { color: colors.text }]}>
               Đăng bài mới
             </Text>
-            <TouchableOpacity
-              onPress={() => bottomSheetRef.current?.close()}
-              style={styles.closeButton}
-            >
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={colors.text} />
             </TouchableOpacity>
           </View>

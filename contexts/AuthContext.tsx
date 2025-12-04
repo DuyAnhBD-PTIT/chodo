@@ -29,13 +29,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const inTabsGroup = segments[0] === "(tabs)";
 
-    if (!user && !inAuthGroup) {
-      // Chưa đăng nhập và không ở màn auth -> chuyển về login
-      router.replace("/(auth)/login");
-    } else if (user && inAuthGroup) {
+    // Chỉ redirect nếu user đã login và đang ở auth group
+    if (user && inAuthGroup) {
       // Đã đăng nhập và đang ở màn auth -> chuyển về app
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/explore" as any);
+    } else if (!user && inTabsGroup) {
+      // Chưa đăng nhập và đang ở tabs -> chuyển về landing
+      router.replace("/");
     }
   }, [user, segments, isLoading, router]);
 
@@ -95,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await authService.logout();
       setUser(null);
-      router.replace("/(auth)/login");
+      router.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
       throw error;

@@ -27,6 +27,7 @@ export const Colors = {
     cardBackground: "#fff",
     screenBackground: "#f5f5f5",
     shadow: "#000",
+    inputBackground: "#f8f8f8",
   },
   dark: {
     text: "#ECEDEE",
@@ -46,6 +47,7 @@ export const Colors = {
     cardBackground: "#1C1C1E",
     screenBackground: "#000",
     shadow: "#000",
+    inputBackground: "#2C2C2E",
   },
 };
 

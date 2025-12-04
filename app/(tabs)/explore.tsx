@@ -4,12 +4,15 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import * as categoriesService from "@/services/categories";
 import * as postsService from "@/services/posts";
 import type { Category, Post } from "@/types";
-import { X } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
+  Keyboard,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -21,19 +24,22 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const searchInputRef = useRef<TextInput>(null);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [debounceTimer, setDebounceTimer] = useState<number | null>(null);
+  const searchWidth = useRef(new Animated.Value(0)).current;
 
   const loadData = useCallback(async () => {
     try {
@@ -82,19 +88,36 @@ export default function ExploreScreen() {
     [posts]
   );
 
-  // Handle search with debounce
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
+  // Handle search icon press - expand search bar
+  const handleSearchIconPress = () => {
+    setIsSearchExpanded(true);
+    Animated.timing(searchWidth, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: false,
+    }).start(() => {
+      searchInputRef.current?.focus();
+    });
+  };
 
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      Keyboard.dismiss();
+      router.push(`/search?query=${encodeURIComponent(searchQuery)}`);
     }
+  };
 
-    const timer = setTimeout(() => {
-      filterPosts(text, selectedCategory);
-    }, 300);
-
-    setDebounceTimer(timer);
+  // Handle search cancel
+  const handleSearchCancel = () => {
+    setIsSearchExpanded(false);
+    setSearchQuery("");
+    Animated.timing(searchWidth, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    Keyboard.dismiss();
   };
 
   // Handle category selection
@@ -129,12 +152,6 @@ export default function ExploreScreen() {
         },
       ]
     );
-  };
-
-  // Handle clear search
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    filterPosts("", selectedCategory);
   };
 
   // Render category tag
@@ -227,47 +244,62 @@ export default function ExploreScreen() {
       edges={["top"]}
     >
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            // backgroundColor: colors.cardBackground,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Khám phá
-        </Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View
-          style={[
-            styles.searchBar,
-            {
-              backgroundColor: colors.cardBackground,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Tìm kiếm bài đăng..."
-            placeholderTextColor={colors.tertiary}
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-          {searchQuery.length > 0 && (
+      <View style={styles.header}>
+        {!isSearchExpanded ? (
+          <>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              Explore
+            </Text>
             <TouchableOpacity
-              onPress={handleClearSearch}
-              style={styles.clearButton}
+              style={styles.searchButton}
+              onPress={handleSearchIconPress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X size={20} color={colors.tertiary} />
+              <Ionicons name="search-outline" size={24} color={colors.text} />
             </TouchableOpacity>
-          )}
-        </View>
+          </>
+        ) : (
+          <Animated.View
+            style={[
+              styles.expandedSearchContainer,
+              {
+                opacity: searchWidth,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={handleSearchCancel}
+              style={styles.cancelButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <TextInput
+              ref={searchInputRef}
+              style={[styles.expandedSearchInput, { color: colors.text }]}
+              placeholder="Tìm kiếm bài đăng..."
+              placeholderTextColor={colors.tertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearchSubmit}
+              returnKeyType="search"
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery("")}
+                style={styles.clearButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color={colors.tertiary}
+                />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        )}
       </View>
 
       {/* Category Tags */}
@@ -344,28 +376,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 16,
-    borderBottomWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "700",
+    letterSpacing: -0.5,
   },
-  searchContainer: {
-    padding: 16,
-    paddingBottom: 8,
+  searchButton: {
+    padding: 4,
   },
-  searchBar: {
+  expandedSearchContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
+    gap: 12,
   },
-  searchInput: {
+  cancelButton: {
+    padding: 4,
+  },
+  expandedSearchInput: {
     flex: 1,
     fontSize: 16,
+    paddingVertical: 8,
   },
   clearButton: {
     padding: 4,

@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,7 @@ import { authService } from "@/services/api/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,14 +23,35 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
-      return;
+    // Reset errors
+    setEmailError("");
+    setPasswordError("");
+    setLoginError("");
+
+    let isValid = true;
+
+    if (!email) {
+      setEmailError("Vui lòng nhập email");
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      setEmailError("Email không hợp lệ");
+      isValid = false;
     }
+
+    if (!password) {
+      setPasswordError("Vui lòng nhập mật khẩu");
+      isValid = false;
+    }
+
+    if (!isValid) return;
 
     setIsLoading(true);
     try {
@@ -38,10 +59,7 @@ export default function LoginScreen() {
       await login(response);
       router.replace("/(tabs)");
     } catch (error) {
-      Alert.alert(
-        "Đăng nhập thất bại",
-        error instanceof Error ? error.message : "Đã xảy ra lỗi"
-      );
+      setLoginError("Sai email hoặc mật khẩu");
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +73,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push("/landing")}
         >
           <Text style={[styles.backButtonText, { color: colors.primary }]}>
             ← Quay lại
@@ -76,7 +94,7 @@ export default function LoginScreen() {
               style={[
                 styles.input,
                 {
-                  borderColor: colors.border,
+                  borderColor: emailError ? colors.error : colors.border,
                   backgroundColor: colors.card,
                   color: colors.text,
                 },
@@ -84,35 +102,76 @@ export default function LoginScreen() {
               placeholder="Nhập email của bạn"
               placeholderTextColor={colors.tertiary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError("");
+                if (loginError) setLoginError("");
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               editable={!isLoading}
             />
+            {emailError ? (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {emailError}
+              </Text>
+            ) : null}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: colors.text }]}>Mật khẩu</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Nhập mật khẩu"
-              placeholderTextColor={colors.tertiary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="password"
-              editable={!isLoading}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.passwordInput,
+                  {
+                    borderColor: passwordError ? colors.error : colors.border,
+                    backgroundColor: colors.card,
+                    color: colors.text,
+                  },
+                ]}
+                placeholder="Nhập mật khẩu"
+                placeholderTextColor={colors.tertiary}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError("");
+                  if (loginError) setLoginError("");
+                }}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete="password"
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+            {passwordError ? (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {passwordError}
+              </Text>
+            ) : null}
           </View>
+
+          {loginError ? (
+            <Text
+              style={[
+                styles.errorText,
+                { color: colors.error, textAlign: "center" },
+              ]}
+            >
+              {loginError}
+            </Text>
+          ) : null}
 
           <TouchableOpacity
             style={[
@@ -190,6 +249,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
+  },
+  passwordContainer: {
+    position: "relative",
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingRight: 50,
+    fontSize: 16,
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    marginTop: 4,
   },
   button: {
     paddingVertical: 16,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,31 +14,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useColorScheme as useDeviceColorScheme } from "react-native";
-
-type ThemeMode = "light" | "dark" | "system";
-
-const THEME_KEY = "@marketplace_theme";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
-  const deviceColorScheme = useDeviceColorScheme();
+  const { themeMode, setThemeMode } = useTheme();
 
-  const [selectedTheme, setSelectedTheme] = useState<ThemeMode>("system");
-
-  const handleThemeChange = async (theme: ThemeMode) => {
+  const handleThemeChange = async (theme: "light" | "dark" | "system") => {
     try {
-      setSelectedTheme(theme);
-      await AsyncStorage.setItem(THEME_KEY, theme);
-
-      // TODO: Implement theme change logic
-      Alert.alert("Thông báo", "Chức năng đổi theme đang được phát triển");
+      await setThemeMode(theme);
     } catch (error) {
       console.error("Save theme error:", error);
+      Alert.alert("Lỗi", "Không thể thay đổi theme");
     }
   };
 
@@ -168,7 +158,7 @@ export default function SettingsScreen() {
                   Sáng
                 </Text>
               </View>
-              {selectedTheme === "light" && (
+              {themeMode === "light" && (
                 <Ionicons name="checkmark" size={20} color={colors.primary} />
               )}
             </TouchableOpacity>
@@ -187,7 +177,7 @@ export default function SettingsScreen() {
                   Tối
                 </Text>
               </View>
-              {selectedTheme === "dark" && (
+              {themeMode === "dark" && (
                 <Ionicons name="checkmark" size={20} color={colors.primary} />
               )}
             </TouchableOpacity>
@@ -206,7 +196,7 @@ export default function SettingsScreen() {
                   Theo hệ thống
                 </Text>
               </View>
-              {selectedTheme === "system" && (
+              {themeMode === "system" && (
                 <Ionicons name="checkmark" size={20} color={colors.primary} />
               )}
             </TouchableOpacity>

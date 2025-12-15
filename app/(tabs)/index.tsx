@@ -50,7 +50,7 @@ export default function HomeScreen() {
     >
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Chợ Trao Đổi
+          Chợ đó!
         </Text>
         <TouchableOpacity
           style={styles.notificationButton}

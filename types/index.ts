@@ -25,6 +25,7 @@ export interface Post {
   title: string;
   description?: string;
   price: number;
+  quantity: number;
   condition: PostCondition;
   address?: string;
   status: PostStatus;
@@ -43,6 +44,7 @@ export interface CreatePostData {
   categoryName?: string;
   address?: string;
   images?: string[]; // Array of image URLs
+  quantity: number;
 }
 
 export interface UpdatePostData {

@@ -243,6 +243,21 @@ export default function PostDetailScreen() {
             {formatPrice(post.price)}
           </Text>
 
+          {/* Quantity */}
+          {post.quantity && (
+            <View style={styles.quantityRow}>
+              <Ionicons
+                name="cube-outline"
+                size={16}
+                color={colors.secondary}
+              />
+              <Text style={[styles.quantityText, { color: colors.secondary }]}>
+                Số lượng:{" "}
+                <Text style={{ fontWeight: "700" }}>{post.quantity}</Text>
+              </Text>
+            </View>
+          )}
+
           {/* Info Row */}
           <View style={styles.infoRow}>
             {post.category && (
@@ -568,6 +583,15 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 16,
+  },
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
+  quantityText: {
+    fontSize: 15,
   },
   infoRow: {
     flexDirection: "row",

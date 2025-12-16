@@ -4,6 +4,7 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as postsService from "@/services/api/posts";
 
 interface PostCardProps {
   post: Post;
@@ -14,7 +15,10 @@ export default function PostCard({ post }: PostCardProps) {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
 
-  const handlePress = () => {
+  const handlePress = async () => {
+    // Gọi API tăng view count
+    await postsService.incrementPostView(post._id);
+    // Navigate to detail page
     router.push(`/post/${post._id}`);
   };
 
@@ -151,6 +155,19 @@ export default function PostCard({ post }: PostCardProps) {
               {post.condition === "new" ? "Mới" : "Đã dùng"}
             </Text>
           </View>
+          {post.quantity && (
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: colors.secondary + "15" },
+              ]}
+            >
+              <Ionicons name="cube" size={11} color={colors.secondary} />
+              <Text style={[styles.badgeText, { color: colors.secondary }]}>
+                Số lượng: {post.quantity}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -252,9 +269,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badge: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    gap: 3,
   },
   badgeText: {
     fontSize: 11,

@@ -13,6 +13,8 @@ export const getPosts = async (params?: {
   limit?: number;
   category?: string;
   status?: string;
+  author?: string;
+  title?: string;
 }): Promise<Post[]> => {
   try {
     const response = await api.get("/api/posts", { params });
@@ -164,5 +166,15 @@ export const getMyPosts = async (params?: {
   } catch (error: any) {
     console.error("Get my posts error:", error);
     throw error.response?.data || error;
+  }
+};
+
+// Tăng view count cho post
+export const incrementPostView = async (id: string): Promise<void> => {
+  try {
+    await api.patch(`/api/posts/${id}/view`);
+  } catch (error: any) {
+    console.error("Increment post view error:", error);
+    // Không throw error để không ảnh hưởng đến UX
   }
 };

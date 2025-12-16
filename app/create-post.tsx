@@ -30,6 +30,7 @@ export default function CreatePostScreen() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [rawPrice, setRawPrice] = useState(""); // Giá trị thô không format
+  const [quantity, setQuantity] = useState("1");
   const [condition, setCondition] = useState<PostCondition>("new");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null
@@ -39,6 +40,14 @@ export default function CreatePostScreen() {
   const [images, setImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
+
+  // Error states
+  const [titleError, setTitleError] = useState("");
+  const [priceError, setPriceError] = useState("");
+  const [quantityError, setQuantityError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  const [imagesError, setImagesError] = useState("");
+  const [generalError, setGeneralError] = useState("");
 
   useEffect(() => {
     loadCategories();
@@ -52,7 +61,7 @@ export default function CreatePostScreen() {
       setCategories(activeCategories);
     } catch (error: any) {
       console.error("Load categories error:", error);
-      Alert.alert("Lỗi", "Không thể tải danh mục");
+      setGeneralError("Không thể tải danh mục");
     } finally {
       setIsCategoriesLoading(false);
     }
@@ -64,10 +73,7 @@ export default function CreatePostScreen() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
-        Alert.alert(
-          "Quyền truy cập",
-          "Cần cấp quyền truy cập thư viện ảnh để chọn ảnh"
-        );
+        setImagesError("Cần cấp quyền truy cập thư viện ảnh để chọn ảnh");
         return;
       }
 
@@ -81,10 +87,11 @@ export default function CreatePostScreen() {
       if (!result.canceled) {
         const uris = result.assets.map((asset) => asset.uri);
         setImages((prev) => [...prev, ...uris].slice(0, 5));
+        setImagesError("");
       }
     } catch (error) {
       console.error("Pick images error:", error);
-      Alert.alert("Lỗi", "Không thể chọn ảnh");
+      setImagesError("Không thể chọn ảnh");
     }
   };
 
@@ -97,6 +104,7 @@ export default function CreatePostScreen() {
       title.trim() !== "" ||
       description.trim() !== "" ||
       price.trim() !== "" ||
+      quantity !== "1" ||
       selectedCategory !== null ||
       address.trim() !== "" ||
       images.length > 0
@@ -143,26 +151,52 @@ export default function CreatePostScreen() {
 
     setRawPrice(numbersOnly);
     setPrice(formatPrice(numbersOnly));
+    setPriceError("");
+  };
+
+  const handleQuantityChange = (text: string) => {
+    // Chỉ cho phép số
+    const numbersOnly = text.replace(/[^0-9]/g, "");
+    setQuantity(numbersOnly);
+    setQuantityError("");
   };
 
   const validateForm = () => {
+    let isValid = true;
+
+    // Reset all errors
+    setTitleError("");
+    setPriceError("");
+    setQuantityError("");
+    setCategoryError("");
+    setImagesError("");
+
     if (!title.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập tiêu đề");
-      return false;
+      setTitleError("Vui lòng nhập tiêu đề");
+      isValid = false;
     }
+
     if (!rawPrice || Number(rawPrice) <= 0) {
-      Alert.alert("Lỗi", "Vui lòng nhập giá hợp lệ");
-      return false;
+      setPriceError("Vui lòng nhập giá hợp lệ");
+      isValid = false;
     }
+
+    if (!quantity || Number(quantity) <= 0) {
+      setQuantityError("Vui lòng nhập số lượng hợp lệ");
+      isValid = false;
+    }
+
     if (!selectedCategory) {
-      Alert.alert("Lỗi", "Vui lòng chọn danh mục");
-      return false;
+      setCategoryError("Vui lòng chọn danh mục");
+      isValid = false;
     }
+
     if (images.length === 0) {
-      Alert.alert("Lỗi", "Vui lòng chọn ít nhất 1 ảnh");
-      return false;
+      setImagesError("Vui lòng chọn ít nhất 1 ảnh");
+      isValid = false;
     }
-    return true;
+
+    return isValid;
   };
 
   const handleSubmit = async () => {
@@ -170,11 +204,13 @@ export default function CreatePostScreen() {
 
     try {
       setIsLoading(true);
+      setGeneralError("");
 
       const postData = {
         title: title.trim(),
         description: description.trim(),
         price: Number(rawPrice),
+        quantity: Number(quantity),
         condition,
         categoryId: selectedCategory!._id,
         categoryName: selectedCategory!.name,
@@ -183,16 +219,10 @@ export default function CreatePostScreen() {
       };
 
       await postsService.createPost(postData);
-
-      Alert.alert("Thành công", "Đã tạo bài đăng thành công", [
-        {
-          text: "OK",
-          onPress: () => router.back(),
-        },
-      ]);
+      router.back();
     } catch (error: any) {
       console.error("Create post error:", error);
-      Alert.alert("Lỗi", error.message || "Không thể tạo bài đăng");
+      setGeneralError(error.message || "Không thể tạo bài đăng");
     } finally {
       setIsLoading(false);
     }
@@ -231,6 +261,21 @@ export default function CreatePostScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* General Error */}
+        {generalError ? (
+          <View
+            style={[
+              styles.errorBanner,
+              { backgroundColor: colors.error + "20" },
+            ]}
+          >
+            <Ionicons name="alert-circle" size={20} color={colors.error} />
+            <Text style={[styles.errorBannerText, { color: colors.error }]}>
+              {generalError}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Title */}
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>
@@ -240,13 +285,22 @@ export default function CreatePostScreen() {
             style={[
               styles.input,
               { backgroundColor: colors.card, color: colors.text },
+              titleError && { borderColor: colors.error, borderWidth: 1 },
             ]}
             placeholder="Nhập tiêu đề bài đăng"
             placeholderTextColor={colors.tertiary}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={(text) => {
+              setTitle(text);
+              setTitleError("");
+            }}
             maxLength={100}
           />
+          {titleError ? (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {titleError}
+            </Text>
+          ) : null}
         </View>
 
         {/* Description */}
@@ -268,22 +322,60 @@ export default function CreatePostScreen() {
           />
         </View>
 
-        {/* Price */}
+        {/* Price and Quantity Row */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Giá <Text style={{ color: colors.error }}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: colors.card, color: colors.text },
-            ]}
-            placeholder="Nhập giá (VNĐ)"
-            placeholderTextColor={colors.tertiary}
-            value={price}
-            onChangeText={handlePriceChange}
-            keyboardType="numeric"
-          />
+          <View style={styles.rowInputs}>
+            {/* Price */}
+            <View style={styles.rowInputItem}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Giá <Text style={{ color: colors.error }}>*</Text>
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.card, color: colors.text },
+                  priceError && { borderColor: colors.error, borderWidth: 1 },
+                ]}
+                placeholder="Nhập giá (VNĐ)"
+                placeholderTextColor={colors.tertiary}
+                value={price}
+                onChangeText={handlePriceChange}
+                keyboardType="numeric"
+              />
+              {priceError ? (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {priceError}
+                </Text>
+              ) : null}
+            </View>
+
+            {/* Quantity */}
+            <View style={styles.rowInputItemSmall}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Số lượng <Text style={{ color: colors.error }}>*</Text>
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.card, color: colors.text },
+                  quantityError && {
+                    borderColor: colors.error,
+                    borderWidth: 1,
+                  },
+                ]}
+                placeholder="Số lượng"
+                placeholderTextColor={colors.tertiary}
+                value={quantity}
+                onChangeText={handleQuantityChange}
+                keyboardType="numeric"
+              />
+              {quantityError ? (
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {quantityError}
+                </Text>
+              ) : null}
+            </View>
+          </View>
         </View>
 
         {/* Category */}
@@ -324,7 +416,10 @@ export default function CreatePostScreen() {
                           : colors.border,
                     },
                   ]}
-                  onPress={() => setSelectedCategory(category)}
+                  onPress={() => {
+                    setSelectedCategory(category);
+                    setCategoryError("");
+                  }}
                 >
                   <Ionicons
                     name="pricetag"
@@ -352,6 +447,11 @@ export default function CreatePostScreen() {
               ))}
             </ScrollView>
           )}
+          {categoryError ? (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {categoryError}
+            </Text>
+          ) : null}
         </View>
 
         {/* Condition */}
@@ -474,6 +574,11 @@ export default function CreatePostScreen() {
               </TouchableOpacity>
             )}
           </ScrollView>
+          {imagesError ? (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {imagesError}
+            </Text>
+          ) : null}
         </View>
 
         {/* Submit Button */}
@@ -594,9 +699,33 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
   },
-  errorText: {
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 16,
+  },
+  errorBannerText: {
     fontSize: 14,
-    padding: 16,
+    fontWeight: "600",
+    flex: 1,
+  },
+  errorText: {
+    fontSize: 13,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  rowInputs: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  rowInputItem: {
+    flex: 0.7,
+  },
+  rowInputItemSmall: {
+    flex: 0.3,
   },
   categoriesScroll: {
     flexDirection: "row",

@@ -5,95 +5,66 @@ const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
 
 class SocketService {
   private socket: Socket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private connectionPromise: Promise<void> | null = null;
 
   async connect() {
-    try {
-      const token = await AsyncStorage.getItem("@marketplace_token");
+    if (this.connectionPromise) return this.connectionPromise;
 
-      if (!token) {
-        console.log("No token found, skipping socket connection");
-        return;
+    this.connectionPromise = (async () => {
+      try {
+        const token = await AsyncStorage.getItem("@marketplace_token");
+        if (!token) return;
+        if (this.socket?.connected) return;
+
+        this.socket = io(SOCKET_URL, {
+          auth: { token },
+          transports: ["websocket"],
+          reconnection: true,
+        });
+
+        this.setupEventListeners();
+      } catch (error) {
+        console.error("Socket connection error:", error);
+        this.connectionPromise = null; 
       }
+    })();
 
-      if (this.socket?.connected) {
-        console.log("Socket already connected");
-        return;
-      }
-
-      this.socket = io(SOCKET_URL, {
-        auth: {
-          token,
-        },
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: this.maxReconnectAttempts,
-      });
-
-      this.setupEventListeners();
-      console.log("Socket connecting to:", SOCKET_URL);
-    } catch (error) {
-      console.error("Socket connection error:", error);
-    }
+    return this.connectionPromise;
   }
 
   private setupEventListeners() {
     if (!this.socket) return;
-
-    this.socket.on("connect", () => {
-      console.log("Socket connected:", this.socket?.id);
-      this.reconnectAttempts = 0;
-    });
-
-    this.socket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
-    });
-
-    this.socket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
-      this.reconnectAttempts++;
-
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.log("Max reconnection attempts reached");
-        this.disconnect();
-      }
-    });
-
-    this.socket.on("error", (error) => {
-      console.error("Socket error:", error);
-    });
-
-    // Debug: Listen to all events
-    this.socket.onAny((eventName, ...args) => {
-      console.log("[Socket Event]", eventName, args);
-    });
+    this.socket.on("connect", () => console.log("✅ Socket connected:", this.socket?.id));
+    this.socket.onAny((eventName, ...args) => console.log("📡 Event:", eventName));
   }
 
+  on(event: string, callback: (...args: any[]) => void) {
+    if (!this.socket) {
+        this.connect().then(() => {
+            this.socket?.off(event); 
+            this.socket?.on(event, callback);
+        });
+    } else {
+        this.socket.off(event);
+        this.socket.on(event, callback);
+    }
+  }
+
+  off(event: string) {
+    this.socket?.off(event);
+  }
+
+  // THÊM LẠI HÀM NÀY ĐỂ HẾT LỖI
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
-      console.log("Socket disconnected manually");
-    }
-  }
-
-  on(event: string, callback: (...args: any[]) => void) {
-    this.socket?.on(event, callback);
-  }
-
-  off(event: string, callback?: (...args: any[]) => void) {
-    if (callback) {
-      this.socket?.off(event, callback);
-    } else {
-      this.socket?.off(event);
+      this.connectionPromise = null;
+      console.log("✅ Socket disconnected manually");
     }
   }
 
   emit(event: string, data?: any) {
-    console.log("[Socket Emit]", event, data);
     this.socket?.emit(event, data);
   }
 

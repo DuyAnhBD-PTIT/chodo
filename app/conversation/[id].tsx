@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -37,195 +38,120 @@ export default function ConversationDetailScreen() {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
 
+  // Dùng Ref để lưu ID hiện tại, giúp hàm callback socket luôn đọc được ID mới nhất
+  const currentIdRef = useRef(id);
+  useEffect(() => {
+    currentIdRef.current = id;
+  }, [id]);
+
+  // 1. Tải dữ liệu ban đầu
   useEffect(() => {
     loadConversationData();
-
-    // Ensure socket is connected
     if (!socketService.isConnected()) {
-      console.log("Socket not connected, attempting to connect...");
       socketService.connect();
-    } else {
-      console.log("Socket already connected");
     }
   }, [id]);
 
-  // Setup socket listeners for real-time messages
+  // 2. Lắng nghe Realtime (SỬA ĐỔI CHÍNH Ở ĐÂY)
   useEffect(() => {
-    console.log(
-      "[Conversation] Setting up socket listeners for conversation:",
-      id
-    );
-    console.log("[Conversation] Current user ID:", user?._id);
+    if (!id) return;
 
     const handleNewMessage = (messageData: Message) => {
-      console.log(
-        "[Conversation] Received new message via socket:",
-        messageData
-      );
-      console.log("[Conversation] Current conversation ID:", id);
-      console.log(
-        "[Conversation] Message conversation ID:",
-        messageData.conversationId
-      );
+      // LOG KIỂM TRA MÁY NHẬN
+      console.log("🚀 SOCKET NHẬN TÍN HIỆU:", messageData.content);
 
-      // Only add message if it belongs to this conversation
-      if (messageData.conversationId === id) {
-        console.log("[Conversation] Adding message to conversation");
+      const incomingConvId = String(messageData.conversationId).trim();
+      const currentConvId = String(currentIdRef.current).trim();
+
+      console.log(`🔍 So sánh ID: Nhận(${incomingConvId}) vs Hiện tại(${currentConvId})`);
+
+      if (incomingConvId === currentConvId) {
         setMessages((prev) => {
-          console.log("[Conversation] Previous messages count:", prev.length);
-          // Check if message already exists (prevent duplicates)
-          const messageExists = prev.some((msg) => msg._id === messageData._id);
-          if (messageExists) {
-            console.log("[Conversation] Message already exists, skipping");
-            return prev;
-          }
+          // Tránh trùng tin nhắn
+          if (prev.some((msg) => msg._id === messageData._id)) return prev;
           return [...prev, messageData];
         });
-        // Scroll to bottom when new message arrives
+        
+        // Cuộn xuống cuối
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 100);
       } else {
-        console.log("[Conversation] Message ignored - wrong conversation");
+        console.log("❌ Tin nhắn thuộc hội thoại khác, bỏ qua.");
       }
     };
 
-    const handleUserConnected = (data: { userId: string }) => {
-      console.log("[Conversation] User online:", data.userId);
-    };
-
-    const handleUserDisconnected = (data: { userId: string }) => {
-      console.log("[Conversation] User offline:", data.userId);
-    };
-
-    // Register socket event listeners
-    console.log("[Conversation] Registering socket event listeners");
     socketService.on("new_message", handleNewMessage);
-    socketService.on("user_connected", handleUserConnected);
-    socketService.on("user_disconnected", handleUserDisconnected);
 
-    // Cleanup listeners on unmount
     return () => {
-      console.log("[Conversation] Cleaning up socket listeners");
-      socketService.off("new_message", handleNewMessage);
-      socketService.off("user_connected", handleUserConnected);
-      socketService.off("user_disconnected", handleUserDisconnected);
+      socketService.off("new_message");
     };
-  }, [id, user?._id]);
+  }, [id]); 
 
   const loadConversationData = async () => {
     try {
-      // Load conversation by ID
-      const currentConv = await conversationsService.getConversationById(
-        id as string
-      );
-
+      const currentConv = await conversationsService.getConversationById(id as string);
       if (currentConv) {
         setConversation(currentConv);
 
-        // Load post details
-        const postData = await postsService.getPostById(currentConv.postId);
-        setPost(postData);
+        const [postData, messagesData] = await Promise.all([
+          postsService.getPostById(currentConv.postId),
+          messagesService.getMessages(currentConv._id),
+        ]);
 
-        // Load messages
-        const messagesData = await messagesService.getMessages(currentConv._id);
+        setPost(postData);
         setMessages(messagesData);
+
+        // Đánh dấu đã đọc
+        const otherMember = currentConv.members.find((m) => m.id !== user?._id);
+        if (otherMember) {
+          socketService.emit("mark_read", { senderId: otherMember.id });
+        }
       }
-    } catch (error: any) {
-      console.error("Load conversation error:", error);
+    } catch (error) {
+      console.error("Lỗi tải cuộc hội thoại:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getOtherMember = () => {
-    if (!conversation) return null;
-    return conversation.members.find((member) => member.id !== user?._id);
-  };
-
   const handleSendMessage = async () => {
     if (!message.trim() || isSending || !conversation) return;
 
-    const otherMember = getOtherMember();
-    if (!otherMember || !post) return;
-
-    const messageContent = message.trim();
+    const otherMember = conversation.members.find((m) => m.id !== user?._id);
+    const contentToSend = message.trim();
 
     try {
       setIsSending(true);
-      setMessage(""); // Clear input immediately for better UX
+      setMessage(""); 
 
-      console.log("Sending message via API:", {
-        receiverId: otherMember.id,
-        content: messageContent,
-        conversationId: conversation._id,
-        isSocketConnected: socketService.isConnected(),
-      });
-
-      // Send via API
-      const apiResponse = await messagesService.sendMessage({
-        receiverId: otherMember.id,
-        content: messageContent,
+      const response = await messagesService.sendMessage({
+        receiverId: otherMember?.id || "",
+        content: contentToSend,
         conversationId: conversation._id,
       });
-      console.log("Message sent via API:", apiResponse);
 
-      // Emit socket event for real-time delivery
-      if (socketService.isConnected()) {
-        socketService.emit("send_message", {
-          conversationId: conversation._id,
-          receiverId: otherMember.id,
-          content: messageContent,
-        });
-      }
-
-      // Add message immediately to UI (optimistic update)
-      if (apiResponse.data) {
-        const newMessage = apiResponse.data;
+      if (response.success && response.data) {
         setMessages((prev) => {
-          // Check if message already exists
-          const messageExists = prev.some((msg) => msg._id === newMessage._id);
-          if (messageExists) {
-            console.log("Message already exists from socket, skipping");
-            return prev;
-          }
-          console.log("Adding sent message to UI");
-          return [...prev, newMessage];
+          if (prev.some((m) => m._id === response.data._id)) return prev;
+          return [...prev, response.data];
         });
       }
-
-      // Scroll to bottom after sending
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error: any) {
-      console.error("Send message error:", error);
-      // On error, restore the message
-      setMessage(messageContent);
+    } catch (error) {
+      console.error("Lỗi gửi tin nhắn:", error);
+      setMessage(contentToSend);
+      Alert.alert("Lỗi", "Không thể gửi tin nhắn lúc này.");
     } finally {
       setIsSending(false);
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        edges={["top"]}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.secondary }]}>
-            Đang tải...
-          </Text>
         </View>
       </SafeAreaView>
     );
@@ -233,211 +159,70 @@ export default function ConversationDetailScreen() {
 
   if (!conversation || !post) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        edges={["top"]}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.error }]}>
-            Không tìm thấy cuộc hội thoại
-          </Text>
+          <Text style={{ color: colors.error }}>Không tìm thấy cuộc hội thoại</Text>
         </View>
       </SafeAreaView>
     );
   }
-
-  const otherMember = getOtherMember();
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <SafeAreaView
-          style={[styles.container, { backgroundColor: colors.background }]}
-          edges={["top"]}
-        >
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
           {/* Header */}
-          <View
-            style={[
-              styles.header,
-              {
-                backgroundColor: colors.card,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+          <View style={[styles.header, { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
             <View style={styles.headerInfo}>
-              <Text
-                style={[styles.headerTitle, { color: colors.text }]}
-                numberOfLines={1}
-              >
-                {post.title}
-              </Text>
-              <Text
-                style={[styles.headerSubtitle, { color: colors.secondary }]}
-                numberOfLines={1}
-              >
-                {post.price.toLocaleString("vi-VN")} đ
-              </Text>
+              <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{post.title}</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.secondary }]}>{post.price.toLocaleString("vi-VN")} đ</Text>
             </View>
-            <TouchableOpacity
-              style={styles.infoButton}
-              onPress={() => router.push(`/post/${post._id}`)}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
           </View>
 
-          {/* Messages Area */}
+          {/* Messages */}
           <ScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
-            onContentSizeChange={() =>
-              scrollViewRef.current?.scrollToEnd({ animated: false })
-            }
+            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
           >
-            {messages.length === 0 ? (
-              <View style={styles.emptyMessages}>
-                <Ionicons
-                  name="chatbubbles-outline"
-                  size={64}
-                  color={colors.tertiary}
-                />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                  Cuộc trò chuyện
-                </Text>
-                <Text
-                  style={[styles.emptySubtitle, { color: colors.tertiary }]}
-                >
-                  {/* eslint-disable-next-line react/no-unescaped-entities */}
-                  Bắt đầu trò chuyện về bài đăng "{post.title}"
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.messagesList}>
-                {messages.map((msg) => {
-                  const isMyMessage = msg.sender.id === user?._id;
-                  return (
-                    <View
-                      key={msg._id}
-                      style={[
-                        styles.messageItem,
-                        isMyMessage ? styles.myMessage : styles.theirMessage,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.messageBubble,
-                          {
-                            backgroundColor: isMyMessage
-                              ? colors.primary
-                              : colors.card,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.messageText,
-                            {
-                              color: isMyMessage ? "#FFFFFF" : colors.text,
-                            },
-                          ]}
-                        >
-                          {msg.content}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.messageTime,
-                            {
-                              color: isMyMessage
-                                ? "rgba(255, 255, 255, 0.7)"
-                                : colors.tertiary,
-                            },
-                          ]}
-                        >
-                          {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </Text>
-                      </View>
+            <View style={styles.messagesList}>
+              {messages.map((msg) => {
+                const isMyMessage = msg.sender.id === user?._id;
+                return (
+                  <View key={msg._id} style={[styles.messageItem, isMyMessage ? styles.myMessage : styles.theirMessage]}>
+                    <View style={[styles.messageBubble, { backgroundColor: isMyMessage ? colors.primary : colors.card }]}>
+                      <Text style={[styles.messageText, { color: isMyMessage ? "#FFFFFF" : colors.text }]}>{msg.content}</Text>
+                      <Text style={[styles.messageTime, { color: isMyMessage ? "rgba(255,255,255,0.7)" : colors.tertiary }]}>
+                        {new Date(msg.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
                     </View>
-                  );
-                })}
-              </View>
-            )}
+                  </View>
+                );
+              })}
+            </View>
           </ScrollView>
 
-          {/* Input Area */}
-          <View
-            style={[
-              styles.inputContainer,
-              {
-                backgroundColor: colors.card,
-                borderTopColor: colors.border,
-              },
-            ]}
-          >
-            <TouchableOpacity style={styles.attachButton}>
-              <Ionicons
-                name="add-circle-outline"
-                size={28}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+          {/* Input */}
+          <View style={[styles.inputContainer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
             <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                },
-              ]}
+              style={[styles.textInput, { backgroundColor: colors.background, color: colors.text }]}
               placeholder="Nhập tin nhắn..."
               placeholderTextColor={colors.tertiary}
               value={message}
               onChangeText={setMessage}
               multiline
-              maxLength={1000}
               editable={!isSending}
             />
-            <TouchableOpacity
-              style={styles.sendButton}
-              onPress={handleSendMessage}
-              disabled={!message.trim() || isSending}
-            >
-              <Ionicons
-                name="send"
-                size={24}
-                color={
-                  !message.trim() || isSending
-                    ? colors.tertiary
-                    : colors.primary
-                }
-              />
+            <TouchableOpacity onPress={handleSendMessage} disabled={!message.trim() || isSending}>
+              <Ionicons name="send" size={24} color={!message.trim() || isSending ? colors.tertiary : colors.primary} />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -447,125 +232,22 @@ export default function ConversationDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-  },
-  infoButton: {
-    padding: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: "center",
-  },
-  messagesContainer: {
-    flex: 1,
-  },
-  messagesContent: {
-    flexGrow: 1,
-  },
-  emptyMessages: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 100,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    textAlign: "center",
-  },
-  messagesList: {
-    padding: 16,
-    gap: 12,
-  },
-  messageItem: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  myMessage: {
-    justifyContent: "flex-end",
-  },
-  theirMessage: {
-    justifyContent: "flex-start",
-  },
-  messageBubble: {
-    maxWidth: "75%",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 18,
-    gap: 4,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  messageTime: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    gap: 8,
-  },
-  attachButton: {
-    padding: 4,
-  },
-  textInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    fontSize: 15,
-    maxHeight: 100,
-  },
-  sendButton: {
-    padding: 4,
-  },
+  container: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", padding: 12, gap: 12 },
+  headerInfo: { flex: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "700" },
+  headerSubtitle: { fontSize: 13 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  messagesContainer: { flex: 1 },
+  messagesContent: { flexGrow: 1, paddingVertical: 16 },
+  messagesList: { paddingHorizontal: 16, gap: 12 },
+  messageItem: { flexDirection: "row", marginBottom: 4 },
+  myMessage: { justifyContent: "flex-end" },
+  theirMessage: { justifyContent: "flex-start" },
+  messageBubble: { maxWidth: "80%", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18 },
+  messageText: { fontSize: 15, lineHeight: 20 },
+  messageTime: { fontSize: 10, marginTop: 4, textAlign: "right" },
+  inputContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, gap: 8, paddingBottom: Platform.OS === 'ios' ? 30 : 10 },
+  textInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, fontSize: 15, maxHeight: 100 },
 });

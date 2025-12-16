@@ -21,6 +21,7 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import * as postsService from "@/services/api/posts";
+import * as conversationsService from "@/services/api/conversations";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Post } from "@/types";
 
@@ -37,6 +38,7 @@ export default function PostDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const modalFlatListRef = useRef<FlatList>(null);
 
@@ -109,6 +111,27 @@ export default function PostDetailScreen() {
       animated: true,
     });
     setCurrentImageIndex(newIndex);
+  };
+
+  const handleContactSeller = async () => {
+    if (!post || !user) return;
+
+    try {
+      setIsCreatingConversation(true);
+
+      const conversation = await conversationsService.createConversation({
+        receiverId: post.user.id,
+        postId: post._id,
+      });
+
+      // Navigate to conversation detail
+      router.push(`/conversation/${conversation._id}`);
+    } catch (error: any) {
+      console.error("Create conversation error:", error);
+      Alert.alert("Lỗi", error.message || "Không thể tạo cuộc trò chuyện");
+    } finally {
+      setIsCreatingConversation(false);
+    }
   };
 
   const handleEditPost = () => {
@@ -399,15 +422,26 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: colors.primary }]}
-            onPress={() => Alert.alert("Liên hệ", "Chức năng đang phát triển")}
+            style={[
+              styles.contactButton,
+              { backgroundColor: colors.primary },
+              isCreatingConversation && { opacity: 0.6 },
+            ]}
+            onPress={handleContactSeller}
+            disabled={isCreatingConversation}
           >
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={20}
-              color="#fff"
-            />
-            <Text style={styles.contactButtonText}>Liên hệ người bán</Text>
+            {isCreatingConversation ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={20}
+                  color="#fff"
+                />
+                <Text style={styles.contactButtonText}>Liên hệ người bán</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </View>

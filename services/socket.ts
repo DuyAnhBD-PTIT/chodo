@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
 
 class SocketService {
   private socket: Socket | null = null;
@@ -65,6 +65,11 @@ class SocketService {
     this.socket.on("error", (error) => {
       console.error("Socket error:", error);
     });
+
+    // Debug: Listen to all events
+    this.socket.onAny((eventName, ...args) => {
+      console.log("[Socket Event]", eventName, args);
+    });
   }
 
   disconnect() {
@@ -88,6 +93,7 @@ class SocketService {
   }
 
   emit(event: string, data?: any) {
+    console.log("[Socket Emit]", event, data);
     this.socket?.emit(event, data);
   }
 

@@ -18,11 +18,13 @@ import { Ionicons } from "@expo/vector-icons";
 interface PostsListProps {
   myPostsOnly?: boolean;
   categoryId?: string | null;
+  scrollEnabled?: boolean;
 }
 
 export default function PostsList({
   myPostsOnly = false,
   categoryId,
+  scrollEnabled = true,
 }: PostsListProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -30,35 +32,79 @@ export default function PostsList({
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const LIMIT = 10;
 
-  const loadPosts = useCallback(async () => {
-    try {
-      const params: any = {};
+  const loadPosts = useCallback(
+    async (pageNum: number = 1, append: boolean = false) => {
+      try {
+        if (!append) {
+          setIsLoading(true);
+        }
 
-      if (categoryId) {
-        params.category = categoryId;
+        const params: any = {
+          page: pageNum,
+          limit: LIMIT,
+        };
+
+        if (categoryId) {
+          params.category = categoryId;
+        }
+
+        const data = myPostsOnly
+          ? await postsService.getMyPosts(params)
+          : await postsService.getPosts(params);
+
+        if (append) {
+          setPosts((prev) => [...prev, ...data]);
+        } else {
+          setPosts(data);
+        }
+
+        setHasMore(data.length === LIMIT);
+      } catch (error: any) {
+        console.error("Load posts error:", error);
+        Alert.alert("Lỗi", error.message || "Không thể tải danh sách bài đăng");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsLoadingMore(false);
       }
-
-      const data = myPostsOnly
-        ? await postsService.getMyPosts()
-        : await postsService.getPosts(params);
-      setPosts(data);
-    } catch (error: any) {
-      console.error("Load posts error:", error);
-      Alert.alert("Lỗi", error.message || "Không thể tải danh sách bài đăng");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [myPostsOnly, categoryId]);
+    },
+    [myPostsOnly, categoryId]
+  );
 
   useEffect(() => {
-    loadPosts();
+    setPage(1);
+    setHasMore(true);
+    loadPosts(1, false);
   }, [loadPosts]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    loadPosts();
+    setPage(1);
+    setHasMore(true);
+    loadPosts(1, false);
+  };
+
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore && !isLoading) {
+      setIsLoadingMore(true);
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadPosts(nextPage, true);
+    }
+  };
+
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
   };
 
   const renderItem = ({ item }: { item: Post }) => <PostCard post={item} />;
@@ -89,6 +135,7 @@ export default function PostsList({
       renderItem={renderItem}
       keyExtractor={(item) => item._id}
       contentContainerStyle={styles.listContent}
+      scrollEnabled={scrollEnabled}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -98,6 +145,9 @@ export default function PostsList({
         />
       }
       ListEmptyComponent={renderEmpty}
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -125,5 +175,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginTop: 16,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });

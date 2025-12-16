@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User, AuthResponse } from "@/types/auth";
+import { socketService } from "@/services/socket";
 
 interface AuthContextType {
   user: User | null;
@@ -42,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        // Connect socket when auth is restored
+        await socketService.connect();
       }
     } catch (error) {
       console.error("Error loading auth data:", error);
@@ -66,10 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (authResponse: AuthResponse) => {
     await setAuthData(authResponse);
+    // Connect socket after successful login
+    await socketService.connect();
   };
 
   const logout = async () => {
     try {
+      // Disconnect socket before clearing auth
+      socketService.disconnect();
       await Promise.all([
         AsyncStorage.removeItem(TOKEN_KEY),
         AsyncStorage.removeItem(USER_KEY),

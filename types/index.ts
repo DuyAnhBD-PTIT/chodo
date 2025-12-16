@@ -114,3 +114,36 @@ export interface UnreadCountResponse {
   message: string;
   data: { count: number };
 }
+
+// Conversation types
+export interface ConversationMember {
+  id: string;
+  _id: string;
+}
+
+export interface Conversation {
+  _id: string;
+  postId: string;
+  members: ConversationMember[];
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+}
+
+// Message types
+export interface MessageUser {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+}
+
+export interface Message {
+  _id: string;
+  conversationId: string;
+  sender: MessageUser;
+  receiver: MessageUser;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  __v?: number;
+}

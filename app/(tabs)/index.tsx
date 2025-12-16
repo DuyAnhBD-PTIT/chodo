@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
@@ -31,11 +32,18 @@ export default function HomeScreen() {
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [isTopSellersLoading, setIsTopSellersLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadCategories();
     loadTopSellers();
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadCategories(), loadTopSellers()]);
+    setRefreshing(false);
+  };
 
   const loadCategories = async () => {
     try {
@@ -67,7 +75,7 @@ export default function HomeScreen() {
     >
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Chợ đó!
+          Trang chủ
         </Text>
         <TouchableOpacity
           style={styles.notificationButton}
@@ -94,308 +102,338 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
-
-      {/* Top Sellers Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Bảng xếp hạng
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.push("/top-sellers")}
-            style={styles.viewAllButton}
-          >
-            <Text style={[styles.viewAllText, { color: colors.primary }]}>
-              Xem tất cả
+        {/* Top Sellers Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Bảng xếp hạng
             </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {isTopSellersLoading ? (
-          <View style={styles.topSellersLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.podiumWrapper,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={styles.podiumContainer}>
-              {/* Arrange as: 2nd, 1st, 3rd */}
-              <View style={styles.podiumRow}>
-                {/* 2nd Place */}
-                {topSellers[1] && (
-                  <View style={styles.podiumItem}>
-                    <View style={styles.podiumAvatarContainer}>
-                      {topSellers[1].avatarUrl ? (
-                        <Image
-                          source={{ uri: topSellers[1].avatarUrl }}
-                          style={styles.podiumAvatar}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.podiumAvatarPlaceholder,
-                            { backgroundColor: colors.border },
-                          ]}
-                        >
-                          <Ionicons
-                            name="person"
-                            size={28}
-                            color={colors.tertiary}
-                          />
-                        </View>
-                      )}
-                      <View style={[styles.podiumBadge, styles.secondBadge]}>
-                        <Text style={styles.podiumBadgeText}>2</Text>
-                      </View>
-                    </View>
-                    <Text
-                      style={[styles.podiumName, { color: colors.text }]}
-                      numberOfLines={1}
-                    >
-                      {topSellers[1].fullName}
-                    </Text>
-                    <Text
-                      style={[styles.podiumStats, { color: colors.secondary }]}
-                    >
-                      {topSellers[1].productCount} SP -{" "}
-                      {topSellers[1].totalViews} Lượt xem
-                    </Text>
-                    <View
-                      style={[
-                        styles.podiumBase,
-                        styles.secondPlace,
-                        {
-                          backgroundColor: colors.card,
-                          borderColor: "#C0C0C0",
-                        },
-                      ]}
-                    >
-                      <Text style={styles.podiumMedal}>🥈</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* 1st Place */}
-                {topSellers[0] && (
-                  <View style={styles.podiumItem}>
-                    <View style={styles.crownContainer}>
-                      <Text style={styles.crown}>👑</Text>
-                    </View>
-                    <View style={styles.podiumAvatarContainer}>
-                      {topSellers[0].avatarUrl ? (
-                        <Image
-                          source={{ uri: topSellers[0].avatarUrl }}
-                          style={[styles.podiumAvatar, styles.firstAvatar]}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.podiumAvatarPlaceholder,
-                            styles.firstAvatar,
-                            { backgroundColor: colors.border },
-                          ]}
-                        >
-                          <Ionicons
-                            name="person"
-                            size={32}
-                            color={colors.tertiary}
-                          />
-                        </View>
-                      )}
-                      <View style={[styles.podiumBadge, styles.firstBadge]}>
-                        <Text style={styles.podiumBadgeText}>1</Text>
-                      </View>
-                    </View>
-                    <Text
-                      style={[
-                        styles.podiumName,
-                        styles.firstPlaceName,
-                        { color: colors.text },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {topSellers[0].fullName}
-                    </Text>
-                    <Text
-                      style={[styles.podiumStats, { color: colors.secondary }]}
-                    >
-                      {topSellers[0].productCount} SP -{" "}
-                      {topSellers[0].totalViews} Lượt xem
-                    </Text>
-                    <View
-                      style={[
-                        styles.podiumBase,
-                        styles.firstPlace,
-                        {
-                          backgroundColor: colors.card,
-                          borderColor: "#FFD700",
-                        },
-                      ]}
-                    >
-                      <Text style={styles.podiumMedal}>🥇</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* 3rd Place */}
-                {topSellers[2] && (
-                  <View style={styles.podiumItem}>
-                    <View style={styles.podiumAvatarContainer}>
-                      {topSellers[2].avatarUrl ? (
-                        <Image
-                          source={{ uri: topSellers[2].avatarUrl }}
-                          style={styles.podiumAvatar}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.podiumAvatarPlaceholder,
-                            { backgroundColor: colors.border },
-                          ]}
-                        >
-                          <Ionicons
-                            name="person"
-                            size={28}
-                            color={colors.tertiary}
-                          />
-                        </View>
-                      )}
-                      <View style={[styles.podiumBadge, styles.thirdBadge]}>
-                        <Text style={styles.podiumBadgeText}>3</Text>
-                      </View>
-                    </View>
-                    <Text
-                      style={[styles.podiumName, { color: colors.text }]}
-                      numberOfLines={1}
-                    >
-                      {topSellers[2].fullName}
-                    </Text>
-                    <Text
-                      style={[styles.podiumStats, { color: colors.secondary }]}
-                    >
-                      {topSellers[2].productCount} SP -{" "}
-                      {topSellers[2].totalViews} Lượt xem
-                    </Text>
-                    <View
-                      style={[
-                        styles.podiumBase,
-                        styles.thirdPlace,
-                        {
-                          backgroundColor: colors.card,
-                          borderColor: "#CD7F32",
-                        },
-                      ]}
-                    >
-                      <Text style={styles.podiumMedal}>🥉</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Categories Filter - Sticky */}
-      <View
-        style={[
-          styles.categoriesWrapper,
-          { backgroundColor: colors.screenBackground },
-        ]}
-      >
-        <View style={styles.categoriesContainer}>
-        {isCategoriesLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesScroll}
-          >
-            {/* Tag "Tất cả" */}
             <TouchableOpacity
+              onPress={() => router.push("/top-sellers")}
+              style={styles.viewAllButton}
+            >
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>
+                Xem tất cả
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {isTopSellersLoading ? (
+            <View style={styles.topSellersLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : (
+            <View
               style={[
-                styles.categoryTag,
+                styles.podiumWrapper,
                 {
-                  backgroundColor:
-                    selectedCategory === null ? colors.primary : colors.card,
-                  borderColor:
-                    selectedCategory === null ? colors.primary : colors.border,
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
                 },
               ]}
-              onPress={() => setSelectedCategory(null)}
             >
-              <Text
-                style={[
-                  styles.categoryTagText,
-                  {
-                    color:
-                      selectedCategory === null ? "#fff" : colors.secondary,
-                  },
-                ]}
-              >
-                Tất cả
-              </Text>
-            </TouchableOpacity>
+              <View style={styles.podiumContainer}>
+                {/* Arrange as: 2nd, 1st, 3rd */}
+                <View style={styles.podiumRow}>
+                  {/* 2nd Place */}
+                  {topSellers[1] && (
+                    <View style={styles.podiumItem}>
+                      <View style={styles.podiumAvatarContainer}>
+                        {topSellers[1].avatarUrl ? (
+                          <Image
+                            source={{ uri: topSellers[1].avatarUrl }}
+                            style={styles.podiumAvatar}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.podiumAvatarPlaceholder,
+                              { backgroundColor: colors.border },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={28}
+                              color={colors.tertiary}
+                            />
+                          </View>
+                        )}
+                        <View style={[styles.podiumBadge, styles.secondBadge]}>
+                          <Text style={styles.podiumBadgeText}>2</Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={[styles.podiumName, { color: colors.text }]}
+                        numberOfLines={1}
+                      >
+                        {topSellers[1].fullName}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.podiumStats,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        {topSellers[1].productCount} SP -{" "}
+                        {topSellers[1].totalViews} Lượt xem
+                      </Text>
+                      <View
+                        style={[
+                          styles.podiumBase,
+                          styles.secondPlace,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: "#C0C0C0",
+                          },
+                        ]}
+                      >
+                        <Text style={styles.podiumMedal}>🥈</Text>
+                      </View>
+                    </View>
+                  )}
 
-            {/* Categories từ API */}
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category._id}
-                style={[
-                  styles.categoryTag,
-                  {
-                    backgroundColor:
-                      selectedCategory === category._id
-                        ? colors.primary
-                        : colors.card,
-                    borderColor:
-                      selectedCategory === category._id
-                        ? colors.primary
-                        : colors.border,
-                  },
-                ]}
-                onPress={() => setSelectedCategory(category._id)}
+                  {/* 1st Place */}
+                  {topSellers[0] && (
+                    <View style={styles.podiumItem}>
+                      <View style={styles.crownContainer}>
+                        <Text style={styles.crown}>👑</Text>
+                      </View>
+                      <View style={styles.podiumAvatarContainer}>
+                        {topSellers[0].avatarUrl ? (
+                          <Image
+                            source={{ uri: topSellers[0].avatarUrl }}
+                            style={[styles.podiumAvatar, styles.firstAvatar]}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.podiumAvatarPlaceholder,
+                              styles.firstAvatar,
+                              { backgroundColor: colors.border },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={32}
+                              color={colors.tertiary}
+                            />
+                          </View>
+                        )}
+                        <View style={[styles.podiumBadge, styles.firstBadge]}>
+                          <Text style={styles.podiumBadgeText}>1</Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={[
+                          styles.podiumName,
+                          styles.firstPlaceName,
+                          { color: colors.text },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {topSellers[0].fullName}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.podiumStats,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        {topSellers[0].productCount} SP -{" "}
+                        {topSellers[0].totalViews} Lượt xem
+                      </Text>
+                      <View
+                        style={[
+                          styles.podiumBase,
+                          styles.firstPlace,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: "#FFD700",
+                          },
+                        ]}
+                      >
+                        <Text style={styles.podiumMedal}>🥇</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 3rd Place */}
+                  {topSellers[2] && (
+                    <View style={styles.podiumItem}>
+                      <View style={styles.podiumAvatarContainer}>
+                        {topSellers[2].avatarUrl ? (
+                          <Image
+                            source={{ uri: topSellers[2].avatarUrl }}
+                            style={styles.podiumAvatar}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.podiumAvatarPlaceholder,
+                              { backgroundColor: colors.border },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={28}
+                              color={colors.tertiary}
+                            />
+                          </View>
+                        )}
+                        <View style={[styles.podiumBadge, styles.thirdBadge]}>
+                          <Text style={styles.podiumBadgeText}>3</Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={[styles.podiumName, { color: colors.text }]}
+                        numberOfLines={1}
+                      >
+                        {topSellers[2].fullName}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.podiumStats,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        {topSellers[2].productCount} SP -{" "}
+                        {topSellers[2].totalViews} Lượt xem
+                      </Text>
+                      <View
+                        style={[
+                          styles.podiumBase,
+                          styles.thirdPlace,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: "#CD7F32",
+                          },
+                        ]}
+                      >
+                        <Text style={styles.podiumMedal}>🥉</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Categories Filter - Sticky */}
+        <View
+          style={[
+            styles.categoriesWrapper,
+            { backgroundColor: colors.screenBackground },
+          ]}
+        >
+          <View style={styles.categoriesContainer}>
+            {isCategoriesLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesScroll}
               >
-                <Ionicons
-                  name="pricetag"
-                  size={14}
-                  color={
-                    selectedCategory === category._id ? "#fff" : colors.tertiary
-                  }
-                />
-                <Text
+                {/* Tag "Tất cả" */}
+                <TouchableOpacity
                   style={[
-                    styles.categoryTagText,
+                    styles.categoryTag,
                     {
-                      color:
-                        selectedCategory === category._id
-                          ? "#fff"
-                          : colors.secondary,
+                      backgroundColor:
+                        selectedCategory === null
+                          ? colors.primary
+                          : colors.card,
+                      borderColor:
+                        selectedCategory === null
+                          ? colors.primary
+                          : colors.border,
                     },
                   ]}
+                  onPress={() => setSelectedCategory(null)}
                 >
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-        </View>
-      </View>
+                  <Text
+                    style={[
+                      styles.categoryTagText,
+                      {
+                        color:
+                          selectedCategory === null ? "#fff" : colors.secondary,
+                      },
+                    ]}
+                  >
+                    Tất cả
+                  </Text>
+                </TouchableOpacity>
 
-      <PostsList myPostsOnly={false} categoryId={selectedCategory} scrollEnabled={false} />
+                {/* Categories từ API */}
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category._id}
+                    style={[
+                      styles.categoryTag,
+                      {
+                        backgroundColor:
+                          selectedCategory === category._id
+                            ? colors.primary
+                            : colors.card,
+                        borderColor:
+                          selectedCategory === category._id
+                            ? colors.primary
+                            : colors.border,
+                      },
+                    ]}
+                    onPress={() => setSelectedCategory(category._id)}
+                  >
+                    <Ionicons
+                      name="pricetag"
+                      size={14}
+                      color={
+                        selectedCategory === category._id
+                          ? "#fff"
+                          : colors.tertiary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.categoryTagText,
+                        {
+                          color:
+                            selectedCategory === category._id
+                              ? "#fff"
+                              : colors.secondary,
+                        },
+                      ]}
+                    >
+                      {category.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+
+        <PostsList
+          myPostsOnly={false}
+          categoryId={selectedCategory}
+          scrollEnabled={false}
+        />
       </ScrollView>
 
       {/* Floating Action Button */}

@@ -217,26 +217,6 @@ export default function SearchScreen() {
           )}
         </View>
 
-        {/* Search Button */}
-        <TouchableOpacity
-          style={[
-            styles.searchButton,
-            { backgroundColor: colors.primary },
-            isLoading && { opacity: 0.6 },
-          ]}
-          onPress={handleSearch}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="search" size={20} color="#fff" />
-              <Text style={styles.searchButtonText}>Tìm kiếm</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
         {/* Results */}
         {hasSearched && (
           <View style={styles.resultsSection}>

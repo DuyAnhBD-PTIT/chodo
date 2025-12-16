@@ -15,17 +15,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as conversationsService from "@/services/api/conversations";
 import * as postsService from "@/services/api/posts";
-import type { Conversation, Post } from "@/types";
+import * as messagesService from "@/services/api/messages";
+import { socketService } from "@/services/socket";
+import type { Conversation, Post, Message } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useChat } from "@/contexts/ChatContext";
 
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const { user } = useAuth();
+  const { setTotalUnreadCount } = useChat();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [posts, setPosts] = useState<{ [key: string]: Post }>({});
+  const [lastMessages, setLastMessages] = useState<{ [key: string]: any }>({});
+  const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>(
+    {}
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -33,24 +41,113 @@ export default function ChatScreen() {
     loadConversations();
   }, []);
 
+  // Socket listener for real-time message updates
+  useEffect(() => {
+    const handleNewMessage = (messageData: Message) => {
+      console.log("[Chat List] Received new message:", messageData);
+
+      // Update last message for this conversation
+      setLastMessages((prev) => ({
+        ...prev,
+        [messageData.conversationId]: messageData,
+      }));
+
+      // Update unread count if message is from other user
+      if (messageData.sender.id !== user?._id) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [messageData.conversationId]:
+            (prev[messageData.conversationId] || 0) + 1,
+        }));
+      }
+
+      // Move conversation to top by updating its order
+      setConversations((prev) => {
+        const convIndex = prev.findIndex(
+          (c) => c._id === messageData.conversationId
+        );
+        if (convIndex > -1) {
+          const updatedConv = {
+            ...prev[convIndex],
+            updatedAt: messageData.createdAt,
+          };
+          const newConversations = [...prev];
+          newConversations.splice(convIndex, 1);
+          return [updatedConv, ...newConversations];
+        }
+        return prev;
+      });
+    };
+
+    socketService.on("new_message", handleNewMessage);
+
+    return () => {
+      socketService.off("new_message");
+    };
+  }, [user?._id]);
+
+  // Update total unread count for tab badge
+  useEffect(() => {
+    // Only count unread for conversations where last message is from other user
+    const total = Object.entries(unreadCounts).reduce(
+      (sum, [convId, count]) => {
+        const lastMessage = lastMessages[convId];
+        if (count > 0 && lastMessage?.sender.id !== user?._id) {
+          return sum + count;
+        }
+        return sum;
+      },
+      0
+    );
+    setTotalUnreadCount(total);
+  }, [unreadCounts, lastMessages, user?._id, setTotalUnreadCount]);
+
   const loadConversations = async () => {
     try {
       const data = await conversationsService.getConversations();
       setConversations(data);
 
-      // Load post details for each conversation
+      // Load post details and last message for each conversation
       const postPromises = data.map((conv) =>
         postsService.getPostById(conv.postId).catch(() => null)
       );
-      const postResults = await Promise.all(postPromises);
+
+      const messagePromises = data.map((conv) =>
+        messagesService.getMessages(conv._id).catch(() => [])
+      );
+
+      const [postResults, messageResults] = await Promise.all([
+        Promise.all(postPromises),
+        Promise.all(messagePromises),
+      ]);
 
       const postsMap: { [key: string]: Post } = {};
+      const lastMessagesMap: { [key: string]: any } = {};
+      const unreadCountsMap: { [key: string]: number } = {};
+
       postResults.forEach((post, index) => {
         if (post) {
           postsMap[data[index].postId] = post;
         }
       });
+
+      messageResults.forEach((messages, index) => {
+        if (messages && messages.length > 0) {
+          const convId = data[index]._id;
+          // Get last message
+          lastMessagesMap[convId] = messages[messages.length - 1];
+
+          // Count unread messages (messages from other user that are not read)
+          const unreadCount = messages.filter(
+            (msg: any) => msg.sender.id !== user?._id && !msg.isRead
+          ).length;
+          unreadCountsMap[convId] = unreadCount;
+        }
+      });
+
       setPosts(postsMap);
+      setLastMessages(lastMessagesMap);
+      setUnreadCounts(unreadCountsMap);
     } catch (error: any) {
       console.error("Load conversations error:", error);
     } finally {
@@ -86,46 +183,88 @@ export default function ChatScreen() {
   const renderConversationItem = ({ item }: { item: Conversation }) => {
     const post = posts[item.postId];
     const otherMember = getOtherMember(item);
+    const lastMessage = lastMessages[item._id];
+    const unreadCount = unreadCounts[item._id] || 0;
+    // Only show unread if last message is from other user
+    const hasUnread = unreadCount > 0 && lastMessage?.sender.id !== user?._id;
 
     return (
       <TouchableOpacity
         style={[
           styles.conversationItem,
           {
-            backgroundColor: colors.card,
+            backgroundColor: hasUnread ? colors.primary + "08" : colors.card,
             borderBottomColor: colors.border,
           },
         ]}
         onPress={() => {
+          // Clear unread count when entering conversation
+          if (hasUnread) {
+            setUnreadCounts((prev) => ({
+              ...prev,
+              [item._id]: 0,
+            }));
+          }
           router.push(`/conversation/${item._id}`);
         }}
         activeOpacity={0.7}
       >
-        <View
-          style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}
-        >
-          <Ionicons name="chatbubbles" size={24} color={colors.primary} />
+        <View style={styles.avatarContainer}>
+          <View
+            style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}
+          >
+            <Ionicons name="chatbubbles" size={24} color={colors.primary} />
+          </View>
+          {hasUnread && (
+            <View
+              style={[styles.unreadBadge, { backgroundColor: colors.error }]}
+            >
+              <Text style={styles.unreadBadgeText}>
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.conversationContent}>
           <View style={styles.conversationHeader}>
             <Text
-              style={[styles.conversationTitle, { color: colors.text }]}
+              style={[
+                styles.conversationTitle,
+                { color: colors.text },
+                hasUnread && styles.conversationTitleUnread,
+              ]}
               numberOfLines={1}
             >
               {post?.title || "Bài đăng"}
             </Text>
             <Text style={[styles.conversationDate, { color: colors.tertiary }]}>
-              {formatDate(item.updatedAt)}
+              {lastMessage
+                ? formatDate(lastMessage.createdAt)
+                : formatDate(item.updatedAt)}
             </Text>
           </View>
 
-          <Text
-            style={[styles.conversationSubtitle, { color: colors.secondary }]}
-            numberOfLines={1}
-          >
-            {post ? `${post.price.toLocaleString("vi-VN")} đ` : "Đang tải..."}
-          </Text>
+          {lastMessage ? (
+            <Text
+              style={[
+                styles.lastMessage,
+                { color: hasUnread ? colors.text : colors.secondary },
+                hasUnread && styles.lastMessageUnread,
+              ]}
+              numberOfLines={1}
+            >
+              {lastMessage.sender.id === user?._id && "Bạn: "}
+              {lastMessage.content}
+            </Text>
+          ) : (
+            <Text
+              style={[styles.conversationSubtitle, { color: colors.secondary }]}
+              numberOfLines={1}
+            >
+              {post ? `${post.price.toLocaleString("vi-VN")} đ` : "Đang tải..."}
+            </Text>
+          )}
         </View>
 
         <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
@@ -253,12 +392,33 @@ const styles = StyleSheet.create({
     gap: 12,
     borderBottomWidth: 1,
   },
+  avatarContainer: {
+    position: "relative",
+  },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
+  },
+  unreadBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  unreadBadgeText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "700",
   },
   conversationContent: {
     flex: 1,
@@ -275,10 +435,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
   },
+  conversationTitleUnread: {
+    fontWeight: "700",
+  },
   conversationDate: {
     fontSize: 12,
   },
   conversationSubtitle: {
     fontSize: 14,
+  },
+  lastMessage: {
+    fontSize: 14,
+  },
+  lastMessageUnread: {
+    fontWeight: "600",
   },
 });

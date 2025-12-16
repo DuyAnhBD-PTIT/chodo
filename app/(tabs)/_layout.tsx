@@ -7,10 +7,12 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useChat } from "@/contexts/ChatContext";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { unreadCount } = useNotifications();
+  const { totalUnreadCount } = useChat();
   const colors = Colors[colorScheme ?? "light"];
 
   return (
@@ -53,7 +55,16 @@ export default function TabLayout() {
         options={{
           title: "Chat",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="message.fill" color={color} />
+            <View>
+              <IconSymbol size={28} name="message.fill" color={color} />
+              {totalUnreadCount > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.badgeText}>
+                    {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />

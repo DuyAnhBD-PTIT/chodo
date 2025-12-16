@@ -12,6 +12,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ThemeProvider as AppThemeProvider } from "@/contexts/ThemeContext";
+import { ChatProvider } from "@/contexts/ChatContext";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -107,7 +108,9 @@ export default function RootLayout() {
     <AuthProvider>
       <NotificationProvider>
         <AppThemeProvider>
-          <RootLayoutNav />
+          <ChatProvider>
+            <RootLayoutNav />
+          </ChatProvider>
         </AppThemeProvider>
       </NotificationProvider>
     </AuthProvider>

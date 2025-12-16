@@ -25,7 +25,7 @@ class SocketService {
         this.setupEventListeners();
       } catch (error) {
         console.error("Socket connection error:", error);
-        this.connectionPromise = null; 
+        this.connectionPromise = null;
       }
     })();
 
@@ -34,19 +34,23 @@ class SocketService {
 
   private setupEventListeners() {
     if (!this.socket) return;
-    this.socket.on("connect", () => console.log("✅ Socket connected:", this.socket?.id));
-    this.socket.onAny((eventName, ...args) => console.log("📡 Event:", eventName));
+    this.socket.on("connect", () =>
+      console.log("✅ Socket connected:", this.socket?.id)
+    );
+    this.socket.onAny((eventName, ...args) =>
+      console.log("📡 Event:", eventName)
+    );
   }
 
   on(event: string, callback: (...args: any[]) => void) {
     if (!this.socket) {
-        this.connect().then(() => {
-            this.socket?.off(event); 
-            this.socket?.on(event, callback);
-        });
+      this.connect().then(() => {
+        this.socket?.off(event);
+        this.socket?.on(event, callback);
+      });
     } else {
-        this.socket.off(event);
-        this.socket.on(event, callback);
+      this.socket.off(event);
+      this.socket.on(event, callback);
     }
   }
 

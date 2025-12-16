@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
   Keyboard,
+  Pressable,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -31,6 +32,7 @@ export default function ConversationDetailScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const { user } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
+  const textInputRef = useRef<TextInput>(null);
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [post, setPost] = useState<Post | null>(null);
@@ -62,10 +64,6 @@ export default function ConversationDetailScreen() {
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       () => {
         setIsKeyboardVisible(true);
-        // Scroll to bottom when keyboard opens
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
       }
     );
     const keyboardWillHide = Keyboard.addListener(
@@ -102,9 +100,7 @@ export default function ConversationDetailScreen() {
 
         // Nếu đang ở cuối, tự động cuộn xuống
         if (isAtBottom) {
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+          scrollViewRef.current?.scrollToEnd({ animated: false });
         } else {
           // Nếu đang cuộn lên trên, hiển thị nút và badge
           if (messageData.sender.id !== user?._id) {
@@ -207,7 +203,6 @@ export default function ConversationDetailScreen() {
 
     try {
       setIsSending(true);
-      setMessage("");
 
       const response = await messagesService.sendMessage({
         receiverId: otherMember?.id || "",
@@ -220,6 +215,11 @@ export default function ConversationDetailScreen() {
           if (prev.some((m) => m._id === response.data._id)) return prev;
           return [...prev, response.data];
         });
+
+        // Clear message after frame to prevent blur
+        requestAnimationFrame(() => {
+          setMessage("");
+        });
       }
     } catch (error) {
       console.error("Lỗi gửi tin nhắn:", error);
@@ -227,10 +227,13 @@ export default function ConversationDetailScreen() {
       Alert.alert("Lỗi", "Không thể gửi tin nhắn lúc này.");
     } finally {
       setIsSending(false);
-      setTimeout(
-        () => scrollViewRef.current?.scrollToEnd({ animated: true }),
-        100
-      );
+
+      // Chỉ scroll nếu input KHÔNG focus
+      if (!textInputRef.current?.isFocused()) {
+        requestAnimationFrame(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        });
+      }
     }
   };
 
@@ -309,6 +312,13 @@ export default function ConversationDetailScreen() {
             contentContainerStyle={styles.messagesContent}
             onScroll={handleScroll}
             scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            onContentSizeChange={() => {
+              if (isAtBottom) {
+                scrollViewRef.current?.scrollToEnd({ animated: false });
+              }
+            }}
           >
             <View style={styles.messagesList}>
               {messages.map((msg, index) => {
@@ -473,20 +483,24 @@ export default function ConversationDetailScreen() {
             ]}
           >
             <TextInput
+              ref={textInputRef}
               style={[
                 styles.textInput,
                 { backgroundColor: colors.background, color: colors.text },
               ]}
-              placeholder="Nhập tin nhắn..."
-              placeholderTextColor={colors.tertiary}
               value={message}
               onChangeText={setMessage}
               multiline
-              editable={!isSending}
+              blurOnSubmit={false}
             />
-            <TouchableOpacity
+
+            <Pressable
+              onPressIn={(e) => {
+                e.preventDefault?.();
+                textInputRef.current?.focus();
+              }}
               onPress={handleSendMessage}
-              disabled={!message.trim() || isSending}
+              android_disableSound
             >
               <Ionicons
                 name="send"
@@ -497,7 +511,7 @@ export default function ConversationDetailScreen() {
                     : colors.primary
                 }
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>

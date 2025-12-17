@@ -49,15 +49,18 @@ export default function PostDetailScreen() {
 
   const loadPost = async () => {
     try {
-      // First load to check status without incrementing view
+      // First, load post to check status
       const data = await postsService.getPostById(id as string, true);
-      setPost(data);
 
-      // Only increment view if status is not pending
-      if (data.status !== "pending") {
-        // Make another call to increment view
-        await postsService.getPostById(id as string, false);
+      // Only increment view if status is approved
+      if (data.status === "approved") {
+        // Call the PATCH /api/posts/{id}/view endpoint BEFORE getting final data
+        await postsService.incrementPostView(id as string);
       }
+
+      // Load post data again to get updated view count
+      const updatedData = await postsService.getPostById(id as string, true);
+      setPost(updatedData);
     } catch (error: any) {
       Alert.alert("Lỗi", error.message || "Không thể tải bài đăng");
       router.back();

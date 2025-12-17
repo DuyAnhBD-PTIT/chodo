@@ -16,12 +16,9 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
 
-  const handlePress = async () => {
-    // Only increment view if status is not pending
-    if (post.status !== "pending") {
-      await postsService.incrementPostView(post._id);
-    }
+  const handlePress = () => {
     // Navigate to detail page with 'from' parameter
+    // View increment will be handled in detail screen
     router.push(`/post/${post._id}?from=${from}`);
   };
 

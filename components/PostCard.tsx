@@ -9,9 +9,14 @@ import * as postsService from "@/services/api/posts";
 interface PostCardProps {
   post: Post;
   from?: "home" | "profile" | "search";
+  hideStatus?: boolean;
 }
 
-export default function PostCard({ post, from = "home" }: PostCardProps) {
+export default function PostCard({
+  post,
+  from = "home",
+  hideStatus = false,
+}: PostCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
@@ -104,7 +109,7 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
       activeOpacity={0.7}
     >
       {/* Status Badge - Top Right of Card */}
-      {statusInfo && from === "profile" && (
+      {statusInfo && from === "profile" && !hideStatus && (
         <View
           style={[
             styles.statusBadge,

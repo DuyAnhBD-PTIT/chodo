@@ -600,7 +600,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
 
-  // Runner-up styles
   runnerUpsContainer: {
     paddingHorizontal: 12,
     paddingBottom: 8,
@@ -650,7 +649,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // Categories styles
   categoriesWrapper: {
     paddingVertical: 8,
     borderBottomWidth: 1,

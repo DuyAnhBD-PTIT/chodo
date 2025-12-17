@@ -107,6 +107,7 @@ export const updatePost = async (
     formData.append("title", data.title || "");
     formData.append("description", data.description || "");
     formData.append("price", data.price?.toString() || "");
+    formData.append("quantity", data.quantity?.toString() || "");
     formData.append("condition", data.condition || "");
     formData.append("categoryId", data.categoryId || "");
     formData.append("categoryName", data.categoryName || "");

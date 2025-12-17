@@ -145,3 +145,14 @@ export const getProfile = async () => {
     throw error.response?.data || error;
   }
 };
+
+export const getUserById = async (userId: string) => {
+  try {
+    const response = await api.get(`/api/users/${userId}`);
+    console.log("Get user by id response:", response.data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get user by id error:", error);
+    throw error.response?.data || error;
+  }
+};

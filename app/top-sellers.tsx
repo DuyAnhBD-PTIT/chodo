@@ -81,7 +81,7 @@ export default function TopSellersScreen() {
             const isTopThree = rank <= 3;
 
             return (
-              <View
+              <TouchableOpacity
                 key={seller.userId}
                 style={[
                   styles.sellerCard,
@@ -91,6 +91,8 @@ export default function TopSellersScreen() {
                   },
                   isTopThree && styles.topThreeCard,
                 ]}
+                onPress={() => router.push(`/user/${seller.userId}`)}
+                activeOpacity={0.7}
               >
                 <View style={styles.rankContainer}>
                   {isTopThree ? (
@@ -158,7 +160,7 @@ export default function TopSellersScreen() {
                     </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </ScrollView>

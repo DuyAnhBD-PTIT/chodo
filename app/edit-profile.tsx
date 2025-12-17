@@ -28,7 +28,7 @@ import LocationSelector, {
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
@@ -162,7 +162,10 @@ export default function EditProfileScreen() {
       }
 
       await usersService.updateUser(updateData);
-      await refreshUser();
+
+      // Fetch updated user data from API and update context
+      const updatedUserData = await usersService.getUserById(user!._id);
+      await updateUser(updatedUserData);
 
       Alert.alert("Thành công", "Cập nhật thông tin thành công", [
         { text: "OK", onPress: () => router.back() },

@@ -80,54 +80,54 @@ export default function PostDetailScreen() {
     try {
       setIsRatingLoading(true);
       // Fake data for UI testing
-      const fakeData: usersService.PostRatingSummary = {
-        ratings: [
-          {
-            stars: 5,
-            comment:
-              "Sản phẩm rất tốt, giống mô tả. Người bán nhiệt tình và giao hàng nhanh!",
-            rater: {
-              id: "user1",
-              fullName: "Nguyễn Văn A",
-              avatarUrl: null,
-            },
-            postId: id as string,
-            createdAt: new Date(
-              Date.now() - 2 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          },
-          {
-            stars: 4,
-            comment: "Tốt, nhưng giao hàng hơi chậm.",
-            rater: {
-              id: "user2",
-              fullName: "Trần Thị B",
-              avatarUrl: null,
-            },
-            postId: id as string,
-            createdAt: new Date(
-              Date.now() - 5 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          },
-          {
-            stars: 5,
-            comment: "Xuất sắc! Chất lượng vượt mong đợi. Sẽ mua lại.",
-            rater: {
-              id: "user3",
-              fullName: "Lê Văn C",
-              avatarUrl: null,
-            },
-            postId: id as string,
-            createdAt: new Date(
-              Date.now() - 7 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          },
-        ],
-      };
-      setRatingSummary(fakeData);
+      // const fakeData: usersService.PostRatingSummary = {
+      //   ratings: [
+      //     {
+      //       stars: 5,
+      //       comment:
+      //         "Sản phẩm rất tốt, giống mô tả. Người bán nhiệt tình và giao hàng nhanh!",
+      //       rater: {
+      //         id: "user1",
+      //         fullName: "Nguyễn Văn A",
+      //         avatarUrl: null,
+      //       },
+      //       postId: id as string,
+      //       createdAt: new Date(
+      //         Date.now() - 2 * 24 * 60 * 60 * 1000
+      //       ).toISOString(),
+      //     },
+      //     {
+      //       stars: 4,
+      //       comment: "Tốt, nhưng giao hàng hơi chậm.",
+      //       rater: {
+      //         id: "user2",
+      //         fullName: "Trần Thị B",
+      //         avatarUrl: null,
+      //       },
+      //       postId: id as string,
+      //       createdAt: new Date(
+      //         Date.now() - 5 * 24 * 60 * 60 * 1000
+      //       ).toISOString(),
+      //     },
+      //     {
+      //       stars: 5,
+      //       comment: "Xuất sắc! Chất lượng vượt mong đợi. Sẽ mua lại.",
+      //       rater: {
+      //         id: "user3",
+      //         fullName: "Lê Văn C",
+      //         avatarUrl: null,
+      //       },
+      //       postId: id as string,
+      //       createdAt: new Date(
+      //         Date.now() - 7 * 24 * 60 * 60 * 1000
+      //       ).toISOString(),
+      //     },
+      //   ],
+      // };
+      // setRatingSummary(fakeData);
       // Uncomment below to use real API
-      // const data = await usersService.getPostRatingSummary(postId);
-      // setRatingSummary(data);
+      const data = await usersService.getPostRatingSummary(postId);
+      setRatingSummary(data);
     } catch (error: any) {
       console.error("Load rating summary error:", error);
       // Don't show error to user, just log it
@@ -527,12 +527,18 @@ export default function PostDetailScreen() {
 
           {/* Seller Info */}
           {post.user && (
-            <View
+            <TouchableOpacity
               style={[
                 styles.section,
                 styles.sellerSection,
                 { backgroundColor: colors.screenBackground },
               ]}
+              onPress={() => {
+                if (post.user.id !== user?._id) {
+                  router.push(`/user/${post.user.id}`);
+                }
+              }}
+              activeOpacity={post.user.id !== user?._id ? 0.7 : 1}
             >
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Người đăng
@@ -567,8 +573,15 @@ export default function PostDetailScreen() {
                     Thành viên
                   </Text>
                 </View>
+                {post.user.id !== user?._id && (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={colors.tertiary}
+                  />
+                )}
               </View>
-            </View>
+            </TouchableOpacity>
           )}
 
           {/* Additional Info */}
@@ -622,6 +635,7 @@ export default function PostDetailScreen() {
           {/* Rating Section */}
           {!isRatingLoading &&
             ratingSummary &&
+            ratingSummary.ratings &&
             (() => {
               const totalRatings = ratingSummary.ratings.length;
               const averageRating =

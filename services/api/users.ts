@@ -22,6 +22,8 @@ export interface RatingItem {
 
 export interface PostRatingSummary {
   ratings: RatingItem[];
+  avg: number;
+  total: number;
 }
 
 interface TopSellersResponse {
@@ -66,11 +68,49 @@ export const getPostRatingSummary = async (
   try {
     const response = await api.get(`/api/ratings/post/${postId}`);
     console.log("Get post rating summary response:", response.data);
-    // Backend returns array directly in data, wrap it in ratings property
-    return { ratings: response.data.data };
+    // Backend now returns {ratings, avg, total} structure
+    return response.data.data;
   } catch (error: any) {
     console.error("Get post rating summary error:", error);
     throw error.response?.data || error;
+  }
+};
+
+export interface CreateRatingData {
+  postId: string;
+  stars: number;
+  comment: string;
+}
+
+export const createRating = async (data: CreateRatingData) => {
+  try {
+    const response = await api.post("/api/ratings", data);
+    console.log("Create rating response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    // console.error("Create rating error:", error);
+    throw error.response?.data || error;
+  }
+};
+
+export const checkCanRate = async (
+  postId: string,
+  buyerId: string
+): Promise<boolean> => {
+  try {
+    // Check if user can rate by verifying transaction
+    const response = await api.get(`/api/transactions/check`, {
+      params: {
+        postId,
+        buyerId,
+      },
+    });
+    console.log("Check can rate response:", response.data);
+    // If transaction exists, user can rate
+    return response.data.success && response.data.data;
+  } catch (error: any) {
+    console.error("Check can rate error:", error);
+    return false;
   }
 };
 

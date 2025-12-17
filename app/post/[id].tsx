@@ -14,6 +14,7 @@ import {
   NativeSyntheticEvent,
   Modal,
   StatusBar,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -43,6 +44,11 @@ export default function PostDetailScreen() {
   const [ratingSummary, setRatingSummary] =
     useState<usersService.PostRatingSummary | null>(null);
   const [isRatingLoading, setIsRatingLoading] = useState(false);
+  const [canRate, setCanRate] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingStars, setRatingStars] = useState(5);
+  const [ratingComment, setRatingComment] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const modalFlatListRef = useRef<FlatList>(null);
 
@@ -68,6 +74,15 @@ export default function PostDetailScreen() {
 
       // Load post rating summary
       loadRatingSummary(updatedData._id);
+
+      // Check if user can rate this post
+      if (user && updatedData.user.id !== user._id) {
+        const canRatePost = await usersService.checkCanRate(
+          updatedData._id,
+          user._id
+        );
+        setCanRate(canRatePost);
+      }
     } catch (error: any) {
       Alert.alert("Lỗi", error.message || "Không thể tải bài đăng");
       router.back();
@@ -240,6 +255,65 @@ export default function PostDetailScreen() {
 
   const handleEditPost = () => {
     router.push(`/edit-post/${id}?from=${from || "home"}`);
+  };
+
+  const handleOpenRatingModal = () => {
+    setRatingStars(5);
+    setRatingComment("");
+    setShowRatingModal(true);
+  };
+
+  const handleCloseRatingModal = () => {
+    setShowRatingModal(false);
+    setRatingStars(5);
+    setRatingComment("");
+  };
+
+  const handleSubmitRating = async () => {
+    if (!post) return;
+
+    if (ratingComment.trim().length < 10) {
+      Alert.alert("Lỗi", "Nhận xét phải có ít nhất 10 ký tự");
+      return;
+    }
+
+    try {
+      setIsSubmittingRating(true);
+      await usersService.createRating({
+        postId: post._id,
+        stars: ratingStars,
+        comment: ratingComment.trim(),
+      });
+
+      Alert.alert("Thành công", "Đánh giá của bạn đã được gửi", [
+        {
+          text: "OK",
+          onPress: () => {
+            handleCloseRatingModal();
+            // Reload rating summary
+            loadRatingSummary(post._id);
+            // User can only rate once, disable after rating
+            setCanRate(false);
+          },
+        },
+      ]);
+    } catch (error: any) {
+      // Check for duplicate key error in message
+      const errorMessage = error.message || "";
+      if (errorMessage.toLowerCase().includes("duplicate key")) {
+        Alert.alert(
+          "Thông báo",
+          "Bạn đã nhận xét sản phẩm này rồi. Mỗi người chỉ có thể nhận xét một lần."
+        );
+        // Close modal and disable canRate
+        handleCloseRatingModal();
+        setCanRate(false);
+      } else {
+        Alert.alert("Lỗi", error.message || "Không thể gửi đánh giá");
+      }
+    } finally {
+      setIsSubmittingRating(false);
+    }
   };
 
   const handleDeletePost = () => {
@@ -635,14 +709,9 @@ export default function PostDetailScreen() {
           {/* Rating Section */}
           {!isRatingLoading &&
             ratingSummary &&
-            ratingSummary.ratings &&
             (() => {
-              const totalRatings = ratingSummary.ratings.length;
-              const averageRating =
-                totalRatings > 0
-                  ? ratingSummary.ratings.reduce((sum, r) => sum + r.stars, 0) /
-                    totalRatings
-                  : 0;
+              const totalRatings = ratingSummary.total || 0;
+              const averageRating = ratingSummary.avg || 0;
 
               return (
                 <View style={[styles.section, styles.ratingSection]}>
@@ -699,6 +768,22 @@ export default function PostDetailScreen() {
                       </>
                     )}
                   </View>
+
+                  {/* Write Review Button */}
+                  {canRate && (
+                    <TouchableOpacity
+                      style={[
+                        styles.writeReviewButton,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      onPress={handleOpenRatingModal}
+                    >
+                      <Ionicons name="create-outline" size={20} color="#fff" />
+                      <Text style={styles.writeReviewButtonText}>
+                        Viết nhận xét
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   {/* Rating List */}
                   {ratingSummary.ratings.length > 0 && (
@@ -874,6 +959,180 @@ export default function PostDetailScreen() {
               )}
             </View>
           )}
+        </View>
+      </Modal>
+
+      {/* Rating Modal */}
+      <Modal
+        visible={showRatingModal}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseRatingModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.ratingModal, { backgroundColor: colors.background }]}
+          >
+            {/* Header */}
+            <View style={styles.ratingModalHeader}>
+              <Text style={[styles.ratingModalTitle, { color: colors.text }]}>
+                Viết đánh giá
+              </Text>
+              <TouchableOpacity onPress={handleCloseRatingModal}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.ratingModalBody}>
+              {/* Product Info */}
+              {post && (
+                <View style={styles.ratingProductInfo}>
+                  {post.images && post.images.length > 0 && (
+                    <Image
+                      source={{ uri: post.images[0].imageUrl }}
+                      style={styles.ratingProductImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <View style={styles.ratingProductDetails}>
+                    <Text
+                      style={[
+                        styles.ratingProductTitle,
+                        { color: colors.text },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {post.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.ratingProductPrice,
+                        { color: colors.primary },
+                      ]}
+                    >
+                      {formatPrice(post.price)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Star Rating */}
+              <View style={styles.ratingStarsSection}>
+                <Text
+                  style={[styles.ratingSectionLabel, { color: colors.text }]}
+                >
+                  Đánh giá của bạn
+                </Text>
+                <View style={styles.ratingStarsContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setRatingStars(star)}
+                      style={styles.ratingStarButton}
+                    >
+                      <Ionicons
+                        name={star <= ratingStars ? "star" : "star-outline"}
+                        size={40}
+                        color="#FFB800"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text
+                  style={[styles.ratingStarsLabel, { color: colors.secondary }]}
+                >
+                  {
+                    ["Rất tệ", "Tệ", "Bình thường", "Tốt", "Xuất sắc"][
+                      ratingStars - 1
+                    ]
+                  }
+                </Text>
+              </View>
+
+              {/* Comment */}
+              <View style={styles.ratingCommentSection}>
+                <Text
+                  style={[styles.ratingSectionLabel, { color: colors.text }]}
+                >
+                  Nhận xét (tối thiểu 10 ký tự)
+                </Text>
+                <TextInput
+                  style={[
+                    styles.ratingCommentInput,
+                    {
+                      backgroundColor: colors.card,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  value={ratingComment}
+                  onChangeText={setRatingComment}
+                  placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm và người bán..."
+                  placeholderTextColor={colors.tertiary}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                />
+                <Text
+                  style={[
+                    styles.ratingCharCount,
+                    {
+                      color:
+                        ratingComment.length >= 10
+                          ? colors.success
+                          : colors.tertiary,
+                    },
+                  ]}
+                >
+                  {ratingComment.length}/500 ký tự
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={styles.ratingModalFooter}>
+              <TouchableOpacity
+                style={[
+                  styles.ratingModalButton,
+                  styles.ratingCancelButton,
+                  { borderColor: colors.border },
+                ]}
+                onPress={handleCloseRatingModal}
+                disabled={isSubmittingRating}
+              >
+                <Text
+                  style={[
+                    styles.ratingCancelButtonText,
+                    { color: colors.text },
+                  ]}
+                >
+                  Hủy
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.ratingModalButton,
+                  styles.ratingSubmitButton,
+                  { backgroundColor: colors.primary },
+                  (isSubmittingRating || ratingComment.trim().length < 10) && {
+                    opacity: 0.5,
+                  },
+                ]}
+                onPress={handleSubmitRating}
+                disabled={
+                  isSubmittingRating || ratingComment.trim().length < 10
+                }
+              >
+                {isSubmittingRating ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.ratingSubmitButtonText}>
+                    Gửi đánh giá
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -1241,5 +1500,135 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  writeReviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    gap: 8,
+    marginBottom: 16,
+  },
+  writeReviewButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  ratingModal: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "90%",
+  },
+  ratingModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.1)",
+  },
+  ratingModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  ratingModalBody: {
+    padding: 16,
+  },
+  ratingProductInfo: {
+    flexDirection: "row",
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.03)",
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 12,
+  },
+  ratingProductImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  ratingProductDetails: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  ratingProductTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  ratingProductPrice: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  ratingStarsSection: {
+    marginBottom: 24,
+    alignItems: "center",
+  },
+  ratingSectionLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  ratingStarsContainer: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  ratingStarButton: {
+    padding: 4,
+  },
+  ratingStarsLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  ratingCommentSection: {
+    marginBottom: 20,
+  },
+  ratingCommentInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 120,
+    maxHeight: 200,
+  },
+  ratingCharCount: {
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 4,
+  },
+  ratingModalFooter: {
+    flexDirection: "row",
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.1)",
+  },
+  ratingModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ratingCancelButton: {
+    borderWidth: 1,
+  },
+  ratingCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  ratingSubmitButton: {},
+  ratingSubmitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

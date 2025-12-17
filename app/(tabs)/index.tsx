@@ -60,6 +60,7 @@ export default function HomeScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadCategories(), loadTopSellers()]);
+    setPostsKey((prev) => prev + 1);
     setRefreshing(false);
   };
 
@@ -529,7 +530,7 @@ const styles = StyleSheet.create({
   topCardFirst: {
     marginTop: -20,
     paddingVertical: 18,
-    maxWidth: 150,
+    maxWidth: 130,
     padding: 14,
   },
   rankBadge: {

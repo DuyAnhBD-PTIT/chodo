@@ -8,6 +8,22 @@ export interface TopSeller {
   userId: string;
 }
 
+export interface RatingItem {
+  stars: number;
+  comment: string;
+  rater: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+  postId: string;
+  createdAt: string;
+}
+
+export interface PostRatingSummary {
+  ratings: RatingItem[];
+}
+
 interface TopSellersResponse {
   success: boolean;
   message: string;
@@ -40,6 +56,19 @@ export const getTopSellers = async (
     return response.data.data;
   } catch (error: any) {
     console.error("Get top sellers error:", error);
+    throw error.response?.data || error;
+  }
+};
+
+export const getPostRatingSummary = async (
+  postId: string
+): Promise<PostRatingSummary> => {
+  try {
+    const response = await api.get(`/api/ratings/post/${postId}`);
+    console.log("Get post rating summary response:", response.data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get post rating summary error:", error);
     throw error.response?.data || error;
   }
 };

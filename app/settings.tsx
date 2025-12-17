@@ -137,6 +137,27 @@ export default function SettingsScreen() {
                 color={colors.tertiary}
               />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: colors.border }]}
+              onPress={() => router.push("/view-history")}
+            >
+              <View style={styles.menuItemLeft}>
+                <Ionicons
+                  name="time-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>
+                  Lịch sử xem
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.tertiary}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 

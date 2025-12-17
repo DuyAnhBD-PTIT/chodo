@@ -28,6 +28,8 @@ export interface Post {
   quantity: number;
   condition: PostCondition;
   address?: string;
+  TinhThanh?: string;
+  XaPhuong?: string;
   status: PostStatus;
   views: number;
   images: PostImage[];

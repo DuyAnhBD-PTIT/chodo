@@ -59,7 +59,9 @@ export default function EditProfileScreen() {
     const loadInitialLocation = async () => {
       if (user?.TinhThanh) {
         try {
-          const response = await fetch("https://provinces.open-api.vn/api/p/");
+          const response = await fetch(
+            "https://provinces.open-api.vn/api/v2/p/"
+          );
           const provincesData = await response.json();
           const province = provincesData.find(
             (p: Province) => p.name === user.TinhThanh
@@ -70,7 +72,7 @@ export default function EditProfileScreen() {
             // Load districts for the province
             if (user?.XaPhuong) {
               const districtResponse = await fetch(
-                `https://provinces.open-api.vn/api/p/${province.code}?depth=2`
+                `https://provinces.open-api.vn/api/v2/p/${province.code}?depth=2`
               );
               const provinceData = await districtResponse.json();
               const district = provinceData.districts?.find(

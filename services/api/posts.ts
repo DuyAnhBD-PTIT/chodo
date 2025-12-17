@@ -203,3 +203,18 @@ export const confirmSell = async (
     throw error.response?.data || error;
   }
 };
+
+// Lấy lịch sử xem bài đăng
+export const getViewHistory = async (params?: {
+  page?: number;
+  limit?: number;
+}): Promise<Post[]> => {
+  try {
+    const response = await api.get("/api/view-history", { params });
+    console.log("Get view history response:", response.data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get view history error:", error);
+    throw error.response?.data || error;
+  }
+};

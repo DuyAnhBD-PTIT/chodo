@@ -104,7 +104,7 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
       activeOpacity={0.7}
     >
       {/* Status Badge - Top Right of Card */}
-      {statusInfo && (
+      {statusInfo && from === "profile" && (
         <View
           style={[
             styles.statusBadge,
@@ -142,25 +142,6 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
         </Text>
 
         <View style={styles.infoRow}>
-          {post.category && (
-            <View
-              style={[styles.badge, { backgroundColor: colors.primary + "15" }]}
-            >
-              <Text
-                style={[styles.badgeText, { color: colors.primary }]}
-                numberOfLines={1}
-              >
-                {post.category.name}
-              </Text>
-            </View>
-          )}
-          <View
-            style={[styles.badge, { backgroundColor: colors.success + "15" }]}
-          >
-            <Text style={[styles.badgeText, { color: colors.success }]}>
-              {post.condition === "new" ? "Mới" : "Đã dùng"}
-            </Text>
-          </View>
           {post.quantity !== undefined && (
             <View
               style={[
@@ -187,7 +168,59 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
                   },
                 ]}
               >
-                {post.quantity === 0 ? "Bán hết" : `Số lượng: ${post.quantity}`}
+                {post.quantity === 0 ? "Bán hết" : `SL: ${post.quantity}`}
+              </Text>
+            </View>
+          )}
+          {post.category && (
+            <View
+              style={[styles.badge, { backgroundColor: colors.primary + "15" }]}
+            >
+              <Text
+                style={[styles.badgeText, { color: colors.primary }]}
+                numberOfLines={1}
+              >
+                {post.category.name}
+              </Text>
+            </View>
+          )}
+          {post.condition === "new" ? (
+            <View
+              style={[
+                styles.badge,
+                styles.conditionBadgeNew,
+                { backgroundColor: colors.success + "20" },
+              ]}
+            >
+              <Ionicons name="sparkles" size={11} color={colors.success} />
+              <Text
+                style={[
+                  styles.badgeText,
+                  styles.conditionTextNew,
+                  { color: colors.success },
+                ]}
+              >
+                MỚI
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.badge,
+                styles.conditionBadgeUsed,
+                {
+                  backgroundColor: colors.tertiary + "15",
+                  borderColor: colors.tertiary + "40",
+                },
+              ]}
+            >
+              <Ionicons
+                name="refresh-outline"
+                size={11}
+                color={colors.tertiary}
+              />
+              <Text style={[styles.badgeText, { color: colors.tertiary }]}>
+                Đã qua sử dụng
               </Text>
             </View>
           )}
@@ -302,6 +335,18 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: "600",
+  },
+  conditionBadgeNew: {
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  conditionTextNew: {
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  conditionBadgeUsed: {
+    borderWidth: 1,
+    borderStyle: "dashed",
   },
   footer: {
     flexDirection: "row",

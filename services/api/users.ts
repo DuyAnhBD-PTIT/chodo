@@ -44,9 +44,43 @@ export const getTopSellers = async (
   }
 };
 
-export const updateUser = async (data: UpdateUserData) => {
+export const updateUser = async (
+  data: UpdateUserData & { avatarUri?: string }
+) => {
   try {
-    const response = await api.put("/api/users/update", data);
+    const formData = new FormData();
+
+    // Add user info fields
+    if (data.fullName) formData.append("fullName", data.fullName);
+    if (data.phone) formData.append("phone", data.phone);
+    if (data.gender) formData.append("gender", data.gender);
+    if (data.address) formData.append("address", data.address);
+    if (data.TinhThanh) formData.append("TinhThanh", data.TinhThanh);
+    if (data.XaPhuong) formData.append("XaPhuong", data.XaPhuong);
+    if (data.DateOfBirth) formData.append("DateOfBirth", data.DateOfBirth);
+    if (data.password) formData.append("password", data.password);
+
+    // Add avatar image if provided
+    if (data.avatarUri) {
+      const filename = data.avatarUri.split("/").pop() || "avatar.jpg";
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : "image/jpeg";
+
+      formData.append("avatar", {
+        uri: data.avatarUri,
+        name: filename,
+        type,
+      } as any);
+    }
+
+    console.log("Updating user with FormData");
+
+    const response = await api.put("/api/users/update", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
     console.log("Update user response:", response.data);
 
     // Update stored user data if update successful

@@ -311,18 +311,40 @@ export default function PostDetailScreen() {
             {formatPrice(post.price)}
           </Text>
 
-          {/* Quantity */}
-          {post.quantity && (
+          {/* Quantity or Sold Out Tag */}
+          {post.quantity !== undefined && (
             <View style={styles.quantityRow}>
-              <Ionicons
-                name="cube-outline"
-                size={16}
-                color={colors.secondary}
-              />
-              <Text style={[styles.quantityText, { color: colors.secondary }]}>
-                Số lượng:{" "}
-                <Text style={{ fontWeight: "700" }}>{post.quantity}</Text>
-              </Text>
+              {post.quantity === 0 ? (
+                <View
+                  style={[
+                    styles.soldOutBadge,
+                    { backgroundColor: colors.error + "15" },
+                  ]}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={18}
+                    color={colors.error}
+                  />
+                  <Text style={[styles.soldOutText, { color: colors.error }]}>
+                    ĐÃ BÁN HẾT
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Ionicons
+                    name="cube-outline"
+                    size={16}
+                    color={colors.secondary}
+                  />
+                  <Text
+                    style={[styles.quantityText, { color: colors.secondary }]}
+                  >
+                    Số lượng:{" "}
+                    <Text style={{ fontWeight: "700" }}>{post.quantity}</Text>
+                  </Text>
+                </>
+              )}
             </View>
           )}
 
@@ -679,6 +701,19 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 15,
+  },
+  soldOutBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
+  },
+  soldOutText: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   infoRow: {
     flexDirection: "row",

@@ -156,7 +156,7 @@ export default function EditProfileScreen() {
 
       // Handle avatar upload if changed
       if (avatarUri && avatarUri !== user?.avatarUrl) {
-        updateData.avatarUrl = avatarUri;
+        updateData.avatarUri = avatarUri;
       }
 
       await usersService.updateUser(updateData);

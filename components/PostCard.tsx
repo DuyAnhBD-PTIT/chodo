@@ -87,6 +87,12 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
           color: colors.error,
           icon: "close-circle" as const,
         };
+      case "sold":
+        return {
+          text: "Đã bán",
+          color: colors.error,
+          icon: "pricetag" as const,
+        };
       default:
         return null;
     }
@@ -158,16 +164,33 @@ export default function PostCard({ post, from = "home" }: PostCardProps) {
               {post.condition === "new" ? "Mới" : "Đã dùng"}
             </Text>
           </View>
-          {post.quantity && (
+          {post.quantity !== undefined && (
             <View
               style={[
                 styles.badge,
-                { backgroundColor: colors.secondary + "15" },
+                {
+                  backgroundColor:
+                    post.quantity === 0
+                      ? colors.error + "15"
+                      : colors.secondary + "15",
+                },
               ]}
             >
-              <Ionicons name="cube" size={11} color={colors.secondary} />
-              <Text style={[styles.badgeText, { color: colors.secondary }]}>
-                Số lượng: {post.quantity}
+              <Ionicons
+                name={post.quantity === 0 ? "close-circle" : "cube"}
+                size={11}
+                color={post.quantity === 0 ? colors.error : colors.secondary}
+              />
+              <Text
+                style={[
+                  styles.badgeText,
+                  {
+                    color:
+                      post.quantity === 0 ? colors.error : colors.secondary,
+                  },
+                ]}
+              >
+                {post.quantity === 0 ? "Bán hết" : `Số lượng: ${post.quantity}`}
               </Text>
             </View>
           )}

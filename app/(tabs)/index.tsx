@@ -20,7 +20,6 @@ import * as usersService from "@/services/api/users";
 import type { Category } from "@/types";
 import type { TopSeller } from "@/services/api/users";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { LinearGradient } from "expo-linear-gradient";
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -42,34 +41,10 @@ export default function HomeScreen() {
     loadTopSellers();
   }, []);
 
-  useEffect(() => {
-    if (
-      params.postDeleted === "true" ||
-      params.postCreated === "true" ||
-      params.postUpdated === "true"
-    ) {
-      setPostsKey((prev) => prev + 1);
-      router.setParams({
-        postDeleted: undefined,
-        postCreated: undefined,
-        postUpdated: undefined,
-      });
-    }
-  }, [params.postDeleted, params.postCreated, params.postUpdated]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([loadCategories(), loadTopSellers()]);
-    setRefreshing(false);
-  };
-
   const loadCategories = async () => {
     try {
       const data = await categoriesService.getCategories();
-      const activeCategories = data.filter((cat) => cat.isActive);
-      setCategories(activeCategories);
-    } catch (error: any) {
-      console.error("Load categories error:", error);
+      setCategories(data.filter((c) => c.isActive));
     } finally {
       setIsCategoriesLoading(false);
     }
@@ -79,605 +54,287 @@ export default function HomeScreen() {
     try {
       const data = await usersService.getTopSellers(5);
       setTopSellers(data);
-    } catch (error: any) {
-      console.error("Load top sellers error:", error);
     } finally {
       setIsTopSellersLoading(false);
     }
   };
 
+  /* ========= LEADERBOARD ========= */
+
   const renderTopCard = (seller: TopSeller, rank: number) => {
     const isFirst = rank === 1;
-    const badgeColors: { [key: number]: [string, string] } = {
-      1: ["#FFD700", "#FFA500"],
-      2: ["#C0C0C0", "#A0A0A0"],
-      3: ["#CD7F32", "#8B4513"],
-    };
-    const borderColors = {
-      1: "#FFD700",
-      2: "#C0C0C0",
-      3: "#CD7F32",
-    };
 
     return (
-      <View
-        style={[
-          styles.topCard,
-          isFirst && styles.topCardFirst,
-          {
-            borderColor: borderColors[rank as 1 | 2 | 3],
-            backgroundColor: colors.card,
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={badgeColors[rank as 1 | 2 | 3]}
-          style={styles.rankBadge}
-        >
-          {rank === 1 && (
-            <Ionicons
-              name="trophy"
-              size={12}
-              color="#fff"
-              style={{ marginRight: 2 }}
-            />
-          )}
-          <Text style={styles.rankText}>#{rank}</Text>
-        </LinearGradient>
+      <View style={[styles.topCard, isFirst && styles.topCardFirst]}>
+        {/* 👑 VƯƠNG MIỆN TOP 1 */}
+        {isFirst && (
+          <View style={styles.crown}>
+            <Ionicons name="trophy" size={22} color="#FACC15" />
+          </View>
+        )}
 
-        <View
-          style={[
-            styles.avatarContainer,
-            isFirst && styles.avatarContainerFirst,
-          ]}
-        >
+        <Text style={styles.rank}>#{rank}</Text>
           {seller.avatarUrl ? (
             <Image
               source={{ uri: seller.avatarUrl }}
               style={[styles.avatar, isFirst && styles.avatarFirst]}
-              resizeMode="cover"
             />
           ) : (
             <View
               style={[
                 styles.avatarPlaceholder,
                 isFirst && styles.avatarFirst,
-                { backgroundColor: colors.border },
               ]}
             >
               <Ionicons
                 name="person"
                 size={isFirst ? 36 : 24}
-                color={colors.tertiary}
+                color="#9CA3AF"
               />
             </View>
-          )}
-        </View>
-
-        <Text
-          style={[
-            styles.topCardName,
-            isFirst && styles.topCardNameFirst,
-            { color: colors.text },
-          ]}
-          numberOfLines={1}
-        >
-          {seller.fullName}
-        </Text>
-
-        <View style={styles.statsContainer}>
-          <Text style={[styles.statsText, { color: colors.secondary }]}>
-            {seller.productCount} SP
-          </Text>
-          <View
-            style={[styles.statsDot, { backgroundColor: colors.tertiary }]}
-          />
-          <Text style={[styles.statsText, { color: colors.secondary }]}>
-            {seller.totalViews} lượt xem
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderRunnerUpRow = (seller: TopSeller, rank: number) => {
-    return (
-      <View
-        style={[
-          styles.runnerUpRow,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <View style={[styles.runnerUpRank, { backgroundColor: colors.border }]}>
-          <Text style={[styles.runnerUpRankText, { color: colors.text }]}>
-            #{rank}
-          </Text>
-        </View>
-
-        {seller.avatarUrl ? (
-          <Image
-            source={{ uri: seller.avatarUrl }}
-            style={styles.runnerUpAvatar}
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            style={[
-              styles.runnerUpAvatarPlaceholder,
-              { backgroundColor: colors.border },
-            ]}
-          >
-            <Ionicons name="person" size={20} color={colors.tertiary} />
-          </View>
-        )}
-
-        <View style={styles.runnerUpInfo}>
-          <Text
-            style={[styles.runnerUpName, { color: colors.text }]}
-            numberOfLines={1}
-          >
+          )}  
+          <Text style={styles.name} numberOfLines={1}>
             {seller.fullName}
           </Text>
-          <Text style={[styles.runnerUpStats, { color: colors.secondary }]}>
-            {seller.productCount} SP - {seller.totalViews} lượt xem
+
+          <Text style={styles.score}>
+            {seller.totalViews} lượt xem
           </Text>
-        </View>
       </View>
     );
   };
 
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.screenBackground }]}
-      edges={["top"]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Trang chủ
+
+  const renderRunnerUp = (seller: TopSeller, rank: number) => (
+    <View style={styles.runnerRow}>
+      <Text style={styles.runnerRank}>#{rank}</Text>
+
+      {seller.avatarUrl ? (
+        <Image
+          source={{ uri: seller.avatarUrl }}
+          style={styles.runnerAvatar}
+        />
+      ) : (
+        <View style={styles.runnerAvatarPlaceholder}>
+          <Ionicons name="person" size={20} color="#999" />
+        </View>
+      )}
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.runnerName} numberOfLines={1}>
+          {seller.fullName}
         </Text>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => router.push("/notifications")}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name="notifications-outline"
-            size={24}
-            color={colors.text}
-          />
+        <Text style={styles.runnerStats}>
+          {seller.productCount} SP • {seller.totalViews} lượt xem
+        </Text>
+      </View>
+    </View>
+  );
+
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Trang chủ</Text>
+        <TouchableOpacity onPress={() => router.push("/notifications")}>
+          <Ionicons name="notifications-outline" size={24} />
           {unreadCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: colors.error }]}>
-              <Text style={styles.badgeText}>
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount}</Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={loadTopSellers} />
         }
       >
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Bảng xếp hạng
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/top-sellers")}
-              style={styles.viewAllButton}
-            >
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>
-                Xem tất cả
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
+        {/* ===== LEADERBOARD ===== */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Bảng xếp hạng</Text>
+          <TouchableOpacity onPress={() => router.push("/top-sellers")}>
+            
+          </TouchableOpacity>
+        </View>
 
-          {isTopSellersLoading ? (
-            <View style={styles.topSellersLoading}>
-              <ActivityIndicator size="small" color={colors.primary} />
-            </View>
-          ) : (
-            <View
-              style={[
-                styles.leaderboardWrapper,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              {/* Top 3 Podium Cards */}
-              <View style={styles.podiumContainer}>
-                {/* 2nd Place */}
+        {isTopSellersLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/top-sellers")}
+          >
+            <View style={styles.leaderboardWrapper}>
+              <View style={styles.podium}>
                 {topSellers[1] && renderTopCard(topSellers[1], 2)}
-                {/* 1st Place */}
                 {topSellers[0] && renderTopCard(topSellers[0], 1)}
-                {/* 3rd Place */}
                 {topSellers[2] && renderTopCard(topSellers[2], 3)}
               </View>
 
-              {/* Runner-ups (4th & 5th) */}
-              {topSellers.length > 3 && (
-                <View style={styles.runnerUpsContainer}>
-                  {topSellers[3] && renderRunnerUpRow(topSellers[3], 4)}
-                  {topSellers[4] && renderRunnerUpRow(topSellers[4], 5)}
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Categories Filter - Sticky */}
-        <View
-          style={[
-            styles.categoriesWrapper,
-            { backgroundColor: colors.screenBackground },
-          ]}
-        >
-          <View style={styles.categoriesContainer}>
-            {isCategoriesLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
+              <View style={styles.runnerList}>
+                {topSellers[3] && renderRunnerUp(topSellers[3], 4)}
               </View>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoriesScroll}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.categoryTag,
-                    {
-                      backgroundColor:
-                        selectedCategory === null
-                          ? colors.primary
-                          : colors.card,
-                      borderColor:
-                        selectedCategory === null
-                          ? colors.primary
-                          : colors.border,
-                    },
-                  ]}
-                  onPress={() => setSelectedCategory(null)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryTagText,
-                      {
-                        color:
-                          selectedCategory === null ? "#fff" : colors.secondary,
-                      },
-                    ]}
-                  >
-                    Tất cả
-                  </Text>
-                </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
 
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category._id}
-                    style={[
-                      styles.categoryTag,
-                      {
-                        backgroundColor:
-                          selectedCategory === category._id
-                            ? colors.primary
-                            : colors.card,
-                        borderColor:
-                          selectedCategory === category._id
-                            ? colors.primary
-                            : colors.border,
-                      },
-                    ]}
-                    onPress={() => setSelectedCategory(category._id)}
-                  >
-                    <Ionicons
-                      name="pricetag"
-                      size={14}
-                      color={
-                        selectedCategory === category._id
-                          ? "#fff"
-                          : colors.tertiary
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.categoryTagText,
-                        {
-                          color:
-                            selectedCategory === category._id
-                              ? "#fff"
-                              : colors.secondary,
-                        },
-                      ]}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        </View>
 
-        <PostsList
-          key={postsKey}
-          myPostsOnly={false}
-          categoryId={selectedCategory}
-          scrollEnabled={false}
-        />
+        {/* POSTS */}
+        <PostsList key={postsKey} myPostsOnly={false} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  container: { flex: 1, backgroundColor: "#F6F7F9" },
+
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-  },
-  notificationButton: {
-    position: "relative",
-    padding: 4,
-  },
+  headerTitle: { fontSize: 28, fontWeight: "700" },
+
   badge: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
+    top: -4,
+    right: -6,
+    backgroundColor: "red",
+    borderRadius: 8,
     paddingHorizontal: 4,
   },
-  badgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  section: {
-    paddingVertical: 12,
-  },
+  badgeText: { color: "#fff", fontSize: 10 },
+
+  section: { paddingVertical: 12 },
   sectionHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  viewAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  viewAllText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  topSellersLoading: {
-    paddingVertical: 40,
-    alignItems: "center",
+  sectionTitle: { fontSize: 18, fontWeight: "700" },
+  viewAll: { color: "#4F6BED", fontWeight: "600" },
+
+  leaderboard: {
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 16,
+    overflow: "hidden",
   },
 
   leaderboardWrapper: {
     marginHorizontal: 20,
-    padding: 8,
-    borderRadius: 16,
+    marginTop: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+
+  runnerList: {
+    marginTop: 16,
+  },
+
+  crown: {
+    position: "absolute",
+    top: -18,
+    zIndex: 20,
+    backgroundColor: "#FFF7ED",
+    padding: 6,
+    borderRadius: 999,
     borderWidth: 1,
-    overflow: "hidden",
+    borderColor: "#FACC15",
   },
-  podiumContainer: {
+
+  podium: {
     flexDirection: "row",
-    alignItems: "flex-end",
     justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingTop: 20,
-    paddingBottom: 16,
-    gap: 8,
-  },
-  topCard: {
-    flex: 1,
-    alignItems: "center",
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-    maxWidth: 110,
-  },
-  topCardFirst: {
-    marginTop: -20,
-    paddingVertical: 18,
-    maxWidth: 150,
-    padding: 14,
-  },
-  rankBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  rankText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  avatarContainer: {
-    marginBottom: 8,
-  },
-  avatarContainerFirst: {
-    marginBottom: 10,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
-    overflow: "hidden",
-  },
-  avatarFirst: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    alignItems: "flex-end",
+    gap: 12,
   },
   avatarPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
   },
-  topCardName: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  topCardNameFirst: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  statsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
+  runnerAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#E5E7EB",
     justifyContent: "center",
-  },
-  statsText: {
-    fontSize: 9,
-  },
-  statsDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    marginHorizontal: 4,
-  },
-
-  // Runner-up styles
-  runnerUpsContainer: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  runnerUpRow: {
-    flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    borderRadius: 10,
+    marginRight: 12,
+  },
+  topCard: {
+    width: 100,
+    alignItems: "center",
+    backgroundColor: "#F5F6FA",
+    borderRadius: 16,
+    paddingVertical: 14,
     borderWidth: 1,
-    gap: 10,
-  },
-  runnerUpRank: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  runnerUpRankText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  runnerUpAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  runnerUpAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  runnerUpInfo: {
-    flex: 1,
-  },
-  runnerUpName: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  runnerUpStats: {
-    fontSize: 12,
+    borderColor: "#E5E7EB",
   },
 
-  // Categories styles
-  categoriesWrapper: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
-  },
-  categoriesContainer: {
-    paddingVertical: 0,
-  },
-  loadingContainer: {
+
+  topCardFirst: {
+    width: 130,
     paddingVertical: 20,
-    alignItems: "center",
+    backgroundColor: "#EEF2FF", // xanh nhạt
+    borderColor: "#4F6BED",
   },
-  categoriesScroll: {
-    paddingHorizontal: 20,
-    gap: 8,
+  
+  rank: {
+    color: "#4F6BED",
+    fontWeight: "700",
+    marginBottom: 6,
   },
-  categoryTag: {
+
+
+  avatar: { width: 48, height: 48, borderRadius: 24, marginBottom: 6 },
+  avatarFirst: { width: 64, height: 64, borderRadius: 32 },
+
+  name: {
+    color: "#111827",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+    score: {
+    color: "#6B7280",
+    fontSize: 12,
+  },
+
+
+  runnerRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
-    gap: 6,
-    marginRight: 8,
+    borderColor: "#E5E7EB",
   },
-  categoryTagText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
+
+  runnerAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 8 },
+  runnerRank: { width: 32, fontWeight: "700", textAlign: "center" },
+  
+  runnerName: { fontWeight: "600" },
+  runnerStats: { fontSize: 12, color: "#666" }
 });

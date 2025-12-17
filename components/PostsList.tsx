@@ -137,7 +137,10 @@ export default function PostsList({
       renderItem={renderItem}
       keyExtractor={(item) => item._id}
       contentContainerStyle={styles.listContent}
-      scrollEnabled={scrollEnabled}
+
+      scrollEnabled={false}        // ✅ TẮT SCROLL
+      nestedScrollEnabled={false}  // ✅ FIX CỨNG WARNING
+
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}

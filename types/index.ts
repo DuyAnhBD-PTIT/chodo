@@ -18,6 +18,11 @@ export interface PostImage {
   publicId?: string;
 }
 
+export interface PostRating {
+  average: number;
+  total: number;
+}
+
 export interface Post {
   _id: string;
   user: PostUser;
@@ -28,9 +33,12 @@ export interface Post {
   quantity: number;
   condition: PostCondition;
   address?: string;
+  TinhThanh?: string;
+  XaPhuong?: string;
   status: PostStatus;
   views: number;
   images: PostImage[];
+  rating?: PostRating;
   createdAt: string;
   updatedAt: string;
 }

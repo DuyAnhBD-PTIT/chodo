@@ -32,3 +32,14 @@ export const sendMessage = async (data: SendMessageData) => {
   const response = await api.post("/api/messages", data);
   return response.data;
 };
+
+export const markMessagesAsRead = async (conversationId: string) => {
+  try {
+    const response = await api.patch(`/api/messages/read/${conversationId}`);
+    console.log("Mark messages as read response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Mark messages as read error:", error);
+    throw error.response?.data || error;
+  }
+};

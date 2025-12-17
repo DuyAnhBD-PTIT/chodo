@@ -8,6 +8,24 @@ export interface TopSeller {
   userId: string;
 }
 
+export interface RatingItem {
+  stars: number;
+  comment: string;
+  rater: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+  postId: string;
+  createdAt: string;
+}
+
+export interface PostRatingSummary {
+  ratings: RatingItem[];
+  avg: number;
+  total: number;
+}
+
 interface TopSellersResponse {
   success: boolean;
   message: string;
@@ -41,6 +59,58 @@ export const getTopSellers = async (
   } catch (error: any) {
     console.error("Get top sellers error:", error);
     throw error.response?.data || error;
+  }
+};
+
+export const getPostRatingSummary = async (
+  postId: string
+): Promise<PostRatingSummary> => {
+  try {
+    const response = await api.get(`/api/ratings/post/${postId}`);
+    console.log("Get post rating summary response:", response.data);
+    // Backend now returns {ratings, avg, total} structure
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get post rating summary error:", error);
+    throw error.response?.data || error;
+  }
+};
+
+export interface CreateRatingData {
+  postId: string;
+  stars: number;
+  comment: string;
+}
+
+export const createRating = async (data: CreateRatingData) => {
+  try {
+    const response = await api.post("/api/ratings", data);
+    console.log("Create rating response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    // console.error("Create rating error:", error);
+    throw error.response?.data || error;
+  }
+};
+
+export const checkCanRate = async (
+  postId: string,
+  buyerId: string
+): Promise<boolean> => {
+  try {
+    // Check if user can rate by verifying transaction
+    const response = await api.get(`/api/transactions/check`, {
+      params: {
+        postId,
+        buyerId,
+      },
+    });
+    console.log("Check can rate response:", response.data);
+    // If transaction exists, user can rate
+    return response.data.success && response.data.data;
+  } catch (error: any) {
+    console.error("Check can rate error:", error);
+    return false;
   }
 };
 
@@ -113,6 +183,17 @@ export const getProfile = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Get profile error:", error);
+    throw error.response?.data || error;
+  }
+};
+
+export const getUserById = async (userId: string) => {
+  try {
+    const response = await api.get(`/api/users/${userId}`);
+    console.log("Get user by id response:", response.data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get user by id error:", error);
     throw error.response?.data || error;
   }
 };

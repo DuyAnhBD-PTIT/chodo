@@ -28,7 +28,7 @@ import LocationSelector, {
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
@@ -59,7 +59,9 @@ export default function EditProfileScreen() {
     const loadInitialLocation = async () => {
       if (user?.TinhThanh) {
         try {
-          const response = await fetch("https://provinces.open-api.vn/api/p/");
+          const response = await fetch(
+            "https://provinces.open-api.vn/api/v2/p/"
+          );
           const provincesData = await response.json();
           const province = provincesData.find(
             (p: Province) => p.name === user.TinhThanh
@@ -70,7 +72,7 @@ export default function EditProfileScreen() {
             // Load districts for the province
             if (user?.XaPhuong) {
               const districtResponse = await fetch(
-                `https://provinces.open-api.vn/api/p/${province.code}?depth=2`
+                `https://provinces.open-api.vn/api/v2/p/${province.code}?depth=2`
               );
               const provinceData = await districtResponse.json();
               const district = provinceData.districts?.find(
@@ -160,7 +162,10 @@ export default function EditProfileScreen() {
       }
 
       await usersService.updateUser(updateData);
-      await refreshUser();
+
+      // Fetch updated user data from API and update context
+      const updatedUserData = await usersService.getUserById(user!._id);
+      await updateUser(updatedUserData);
 
       Alert.alert("Thành công", "Cập nhật thông tin thành công", [
         { text: "OK", onPress: () => router.back() },

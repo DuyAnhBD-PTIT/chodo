@@ -13,6 +13,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import * as postsService from "@/services/api/posts";
 import type { Post } from "@/types";
 import PostCard from "./PostCard";
+// import ViewHistory from "./ViewHistory";
 import { Ionicons } from "@expo/vector-icons";
 
 interface PostsListProps {
@@ -107,9 +108,17 @@ export default function PostsList({
     );
   };
 
-  const renderItem = ({ item }: { item: Post }) => (
-    <PostCard post={item} from={myPostsOnly ? "profile" : "home"} />
-  );
+  const renderItem = ({ item, index }: { item: Post; index: number }) => {
+    // if (!myPostsOnly && index === 2) {
+    //   return (
+    //     <View>
+    //       <ViewHistory />
+    //       <PostCard post={item} from="home" />
+    //     </View>
+    //   );
+    // }
+    return <PostCard post={item} from={myPostsOnly ? "profile" : "home"} />;
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>

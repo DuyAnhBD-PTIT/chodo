@@ -176,7 +176,10 @@ export default function ConversationDetailScreen() {
           setIsInitialLoad(false);
         }, 100);
 
-        // Đánh dấu đã đọc
+        // Đánh dấu đã đọc qua API
+        await messagesService.markMessagesAsRead(currentConv._id);
+
+        // Đánh dấu đã đọc qua socket
         if (currentConv.otherUser?.id) {
           socketService.emit("mark_read", {
             senderId: currentConv.otherUser.id,

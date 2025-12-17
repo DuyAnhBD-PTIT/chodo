@@ -13,13 +13,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import PostsList from "@/components/PostsList";
 import * as categoriesService from "@/services/api/categories";
 import * as usersService from "@/services/api/users";
 import type { Category } from "@/types";
 import type { TopSeller } from "@/services/api/users";
-import { useNotifications } from "@/contexts/NotificationContext";
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -28,8 +27,6 @@ export default function HomeScreen() {
     colorScheme === "dark" ? "rgba(255,255,255,0.08)" : "#E5E7EB";
 
   const router = useRouter();
-  const { unreadCount } = useNotifications();
-  const params = useLocalSearchParams();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -40,6 +37,9 @@ export default function HomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [postsKey, setPostsKey] = useState(0);
+
+  // 🔹 STATE CHO "KHÁC"
+  const [showMoreCategories, setShowMoreCategories] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -71,7 +71,11 @@ export default function HomeScreen() {
     }
   };
 
-  /* ================= BXH ================= */
+  // 🔹 CHIA DANH MỤC
+  const mainCategories = categories.slice(0, 4);
+  const extraCategories = categories.slice(4);
+
+  /* ================= BXH (GIỮ NGUYÊN) ================= */
 
   const renderTopCard = (seller: TopSeller, rank: number) => {
     const isFirst = rank === 1;
@@ -238,7 +242,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* CATEGORY */}
+        {/* ================= DANH MỤC ================= */}
         <View
           style={[
             styles.categoriesWrapper,
@@ -248,45 +252,80 @@ export default function HomeScreen() {
           {isCategoriesLoading ? (
             <ActivityIndicator />
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <TouchableOpacity
-                style={[
-                  styles.categoryTag,
-                  selectedCategory === null && {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                  },
-                ]}
-                onPress={() => setSelectedCategory(null)}
-              >
-                <Text style={{ color: selectedCategory === null ? "#fff" : colors.text }}>
-                  Tất cả
-                </Text>
-              </TouchableOpacity>
-
-              {categories.map((cat) => (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <TouchableOpacity
-                  key={cat._id}
                   style={[
                     styles.categoryTag,
-                    selectedCategory === cat._id && {
+                    selectedCategory === null && {
                       backgroundColor: colors.primary,
                       borderColor: colors.primary,
                     },
                   ]}
-                  onPress={() => setSelectedCategory(cat._id)}
+                  onPress={() => setSelectedCategory(null)}
                 >
-                  <Text
-                    style={{
-                      color:
-                        selectedCategory === cat._id ? "#fff" : colors.text,
-                    }}
-                  >
-                    {cat.name}
+                  <Text style={{ color: selectedCategory === null ? "#fff" : colors.text }}>
+                    Tất cả
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+
+                {mainCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat._id}
+                    style={[
+                      styles.categoryTag,
+                      selectedCategory === cat._id && {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                      },
+                    ]}
+                    onPress={() => setSelectedCategory(cat._id)}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          selectedCategory === cat._id ? "#fff" : colors.text,
+                      }}
+                    >
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+
+                {/* KHÁC – LUÔN HIỆN */}
+                <TouchableOpacity
+                  style={styles.categoryTag}
+                  onPress={() => setShowMoreCategories((p) => !p)}
+                >
+                  <Text style={{ color: colors.text }}>
+                    {showMoreCategories ? "Thu gọn" : "Khác"}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+
+              {showMoreCategories && (
+                <View style={styles.extraCategories}>
+                  {extraCategories.length === 0 ? (
+                    <Text style={{ color: colors.secondary }}>
+                      Chưa có danh mục khác
+                    </Text>
+                  ) : (
+                    extraCategories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat._id}
+                        style={styles.extraCategoryTag}
+                        onPress={() => {
+                          setSelectedCategory(cat._id);
+                          setShowMoreCategories(false);
+                        }}
+                      >
+                        <Text style={{ color: colors.text }}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -358,7 +397,6 @@ const styles = StyleSheet.create({
   },
 
   rank: { fontWeight: "700", marginBottom: 6 },
-
   name: { fontWeight: "600", fontSize: 13 },
   score: { fontSize: 12 },
 
@@ -387,5 +425,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     marginHorizontal: 6,
+  },
+
+  extraCategories: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    gap: 8,
+  },
+  extraCategoryTag: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
 });

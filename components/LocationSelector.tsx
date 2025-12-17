@@ -73,7 +73,9 @@ export default function LocationSelector({
   const loadProvinces = async () => {
     try {
       setIsLoadingProvinces(true);
-      const response = await axios.get("https://provinces.open-api.vn/api/p/");
+      const response = await axios.get(
+        "https://provinces.open-api.vn/api/v2/p/"
+      );
       setProvinces(response.data);
     } catch (error) {
       console.error("Error loading provinces:", error);
@@ -86,7 +88,7 @@ export default function LocationSelector({
     try {
       setIsLoadingDistricts(true);
       const response = await axios.get(
-        `https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`
+        `https://provinces.open-api.vn/api/v2/p/${provinceCode}?depth=2`
       );
       setDistricts(response.data.districts || []);
     } catch (error) {

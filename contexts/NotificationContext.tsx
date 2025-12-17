@@ -129,8 +129,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     loadNotifications();
 
     return () => {
-      socketService.off("new_notification", handleNewNotification);
-      socketService.off("unread_count_update", handleUnreadCountUpdate);
+      socketService.off("new_notification");
+      socketService.off("unread_count_update");
     };
   }, [isAuthenticated, loadNotifications]);
 

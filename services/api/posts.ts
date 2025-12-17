@@ -107,6 +107,7 @@ export const updatePost = async (
     formData.append("title", data.title || "");
     formData.append("description", data.description || "");
     formData.append("price", data.price?.toString() || "");
+    formData.append("quantity", data.quantity?.toString() || "");
     formData.append("condition", data.condition || "");
     formData.append("categoryId", data.categoryId || "");
     formData.append("categoryName", data.categoryName || "");
@@ -200,6 +201,21 @@ export const confirmSell = async (
     return response.data;
   } catch (error: any) {
     console.error("Confirm sell error:", error);
+    throw error.response?.data || error;
+  }
+};
+
+// Lấy lịch sử xem bài đăng
+export const getViewHistory = async (params?: {
+  page?: number;
+  limit?: number;
+}): Promise<Post[]> => {
+  try {
+    const response = await api.get("/api/view-history", { params });
+    console.log("Get view history response:", response.data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get view history error:", error);
     throw error.response?.data || error;
   }
 };

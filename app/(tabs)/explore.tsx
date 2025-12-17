@@ -203,13 +203,19 @@ export default function ChatScreen() {
             borderBottomColor: colors.border,
           },
         ]}
-        onPress={() => {
+        onPress={async () => {
           // Clear unread count when entering conversation
           if (hasUnread) {
             setUnreadCounts((prev) => ({
               ...prev,
               [item._id]: 0,
             }));
+          }
+          // Mark messages as read via API
+          try {
+            await messagesService.markMessagesAsRead(item._id);
+          } catch (error) {
+            console.error("Error marking messages as read:", error);
           }
           router.push(`/conversation/${item._id}`);
         }}

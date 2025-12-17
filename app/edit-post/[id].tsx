@@ -34,6 +34,7 @@ export default function EditPostScreen() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [rawPrice, setRawPrice] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const [condition, setCondition] = useState<PostCondition>("new");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null
@@ -67,6 +68,7 @@ export default function EditPostScreen() {
       setDescription(data.description || "");
       setRawPrice(data.price.toString());
       setPrice(formatPrice(data.price.toString()));
+      setQuantity(data.quantity?.toString() || "1");
       setCondition(data.condition);
 
       // Parse address into components
@@ -79,7 +81,7 @@ export default function EditPostScreen() {
           // Load provinces to find matching province and district
           try {
             const provincesResponse = await fetch(
-              "https://provinces.open-api.vn/api/p/"
+              "https://provinces.open-api.vn/api/v2/p/"
             );
             const provincesData = await provincesResponse.json();
 
@@ -94,7 +96,7 @@ export default function EditPostScreen() {
 
               // Load districts
               const districtResponse = await fetch(
-                `https://provinces.open-api.vn/api/p/${province.code}?depth=2`
+                `https://provinces.open-api.vn/api/v2/p/${province.code}?depth=2`
               );
               const provinceData = await districtResponse.json();
               const district = provinceData.districts?.find(
@@ -237,6 +239,12 @@ export default function EditPostScreen() {
     setPrice(formatPrice(numbersOnly));
   };
 
+  const handleQuantityChange = (text: string) => {
+    // Chỉ cho phép số
+    const numbersOnly = text.replace(/[^0-9]/g, "");
+    setQuantity(numbersOnly);
+  };
+
   const handleClose = () => {
     Alert.alert(
       "Xác nhận thoát",
@@ -262,6 +270,10 @@ export default function EditPostScreen() {
     }
     if (!rawPrice || Number(rawPrice) <= 0) {
       Alert.alert("Lỗi", "Vui lòng nhập giá hợp lệ");
+      return false;
+    }
+    if (!quantity || Number(quantity) <= 0) {
+      Alert.alert("Lỗi", "Vui lòng nhập số lượng hợp lệ");
       return false;
     }
     if (!selectedCategory) {
@@ -297,6 +309,7 @@ export default function EditPostScreen() {
         title: title.trim(),
         description: description.trim(),
         price: Number(rawPrice),
+        quantity: Number(quantity),
         condition,
         categoryId: selectedCategory!._id,
         categoryName: selectedCategory!.name,
@@ -413,22 +426,45 @@ export default function EditPostScreen() {
           />
         </View>
 
-        {/* Price */}
+        {/* Price and Quantity Row */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Giá <Text style={{ color: colors.error }}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: colors.card, color: colors.text },
-            ]}
-            placeholder="Nhập giá (VNĐ)"
-            placeholderTextColor={colors.tertiary}
-            value={price}
-            onChangeText={handlePriceChange}
-            keyboardType="numeric"
-          />
+          <View style={styles.rowInputs}>
+            {/* Price */}
+            <View style={styles.rowInputItem}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Giá <Text style={{ color: colors.error }}>*</Text>
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.card, color: colors.text },
+                ]}
+                placeholder="Nhập giá (VNĐ)"
+                placeholderTextColor={colors.tertiary}
+                value={price}
+                onChangeText={handlePriceChange}
+                keyboardType="numeric"
+              />
+            </View>
+
+            {/* Quantity */}
+            <View style={styles.rowInputItemSmall}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Số lượng <Text style={{ color: colors.error }}>*</Text>
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.card, color: colors.text },
+                ]}
+                placeholder="Số lượng"
+                placeholderTextColor={colors.tertiary}
+                value={quantity}
+                onChangeText={handleQuantityChange}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Category */}
@@ -562,7 +598,7 @@ export default function EditPostScreen() {
                   },
                 ]}
               >
-                Đã dùng
+                Đã qua sử dụng
               </Text>
             </TouchableOpacity>
           </View>
@@ -700,6 +736,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
     fontStyle: "italic",
+  },
+  rowInputs: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  rowInputItem: {
+    flex: 0.7,
+  },
+  rowInputItemSmall: {
+    flex: 0.3,
   },
   textArea: {
     height: 100,

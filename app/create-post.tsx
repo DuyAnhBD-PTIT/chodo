@@ -553,7 +553,7 @@ export default function CreatePostScreen() {
                   },
                 ]}
               >
-                Đã dùng
+                Đã qua sử dụng
               </Text>
             </TouchableOpacity>
           </View>

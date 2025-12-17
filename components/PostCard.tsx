@@ -128,6 +128,15 @@ export default function PostCard({
           style={styles.image}
           resizeMode="cover"
         />
+        {/* Rating Badge - Top Right on Image */}
+        {post.rating && post.rating.total > 0 && (
+          <View style={styles.ratingBadge}>
+            <Ionicons name="star" size={12} color="#FFB800" />
+            <Text style={styles.ratingBadgeText}>
+              {post.rating.average.toFixed(1)} ({post.rating.total})
+            </Text>
+          </View>
+        )}
         {post.images && post.images.length > 1 && (
           <View style={styles.imageCount}>
             <Ionicons name="images" size={14} color="#fff" />
@@ -147,6 +156,7 @@ export default function PostCard({
         </Text>
 
         <View style={styles.infoRow}>
+          {/* Quantity */}
           {post.quantity !== undefined && (
             <View
               style={[
@@ -177,6 +187,7 @@ export default function PostCard({
               </Text>
             </View>
           )}
+          {/* Category */}
           {post.category && (
             <View
               style={[styles.badge, { backgroundColor: colors.primary + "15" }]}
@@ -189,6 +200,7 @@ export default function PostCard({
               </Text>
             </View>
           )}
+          {/* Condition */}
           {post.condition === "new" ? (
             <View
               style={[
@@ -308,6 +320,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
   },
+  ratingBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  ratingBadgeText: {
+    color: "#F57C00",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   content: {
     flex: 1,
     padding: 12,
@@ -326,6 +360,7 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 6,
     marginBottom: 8,
   },

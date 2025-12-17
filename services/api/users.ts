@@ -66,7 +66,8 @@ export const getPostRatingSummary = async (
   try {
     const response = await api.get(`/api/ratings/post/${postId}`);
     console.log("Get post rating summary response:", response.data);
-    return response.data.data;
+    // Backend returns array directly in data, wrap it in ratings property
+    return { ratings: response.data.data };
   } catch (error: any) {
     console.error("Get post rating summary error:", error);
     throw error.response?.data || error;

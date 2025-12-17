@@ -107,7 +107,9 @@ export default function PostsList({
     );
   };
 
-  const renderItem = ({ item }: { item: Post }) => <PostCard post={item} />;
+  const renderItem = ({ item }: { item: Post }) => (
+    <PostCard post={item} from={myPostsOnly ? "profile" : "home"} />
+  );
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>

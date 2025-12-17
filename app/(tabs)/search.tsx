@@ -237,7 +237,7 @@ export default function SearchScreen() {
             ) : (
               <View style={styles.postsList}>
                 {posts.map((post) => (
-                  <PostCard key={post._id} post={post} />
+                  <PostCard key={post._id} post={post} from="search" />
                 ))}
               </View>
             )}

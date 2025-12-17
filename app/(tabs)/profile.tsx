@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
+  Image,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -17,13 +19,14 @@ import * as postsService from "@/services/api/posts";
 import type { Post } from "@/types";
 import PostCard from "@/components/PostCard";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
 export default function ProfileScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const params = useLocalSearchParams();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +49,30 @@ export default function ProfileScreen() {
     loadPosts();
   }, [loadPosts]);
 
+  // Reload posts every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadPosts();
+    }, [loadPosts])
+  );
+
+  // Listen for postDeleted, postCreated, or postUpdated param and force refresh
+  useEffect(() => {
+    if (
+      params.postDeleted === "true" ||
+      params.postCreated === "true" ||
+      params.postUpdated === "true"
+    ) {
+      loadPosts();
+      // Clear the params
+      router.setParams({
+        postDeleted: undefined,
+        postCreated: undefined,
+        postUpdated: undefined,
+      });
+    }
+  }, [params.postDeleted, params.postCreated, params.postUpdated]);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadPosts();
@@ -65,13 +92,20 @@ export default function ProfileScreen() {
             { backgroundColor: colors.primary + "20" },
           ]}
         >
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {user?.fullName?.charAt(0)?.toUpperCase() ||
-                user?.email?.charAt(0)?.toUpperCase() ||
-                "U"}
-            </Text>
-          </View>
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View
+              style={[
+                styles.avatarPlaceholder,
+                { backgroundColor: colors.primary + "20" },
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: colors.primary }]}>
+                {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
+              </Text>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.userName, { color: colors.text }]}>
@@ -105,7 +139,9 @@ export default function ProfileScreen() {
     </>
   );
 
-  const renderItem = ({ item }: { item: Post }) => <PostCard post={item} />;
+  const renderItem = ({ item }: { item: Post }) => (
+    <PostCard post={item} from="profile" />
+  );
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -160,6 +196,15 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => router.push("/create-post")}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={32} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -205,6 +250,18 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: "#667eea",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -260,5 +317,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginTop: 16,
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 });

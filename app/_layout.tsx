@@ -7,6 +7,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
+import * as ImagePicker from "expo-image-picker";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,13 @@ function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // Request media library permissions on app start
+  useEffect(() => {
+    (async () => {
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    })();
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
@@ -66,6 +74,12 @@ function RootLayoutNav() {
         />
         <Stack.Screen
           name="settings"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="edit-profile"
           options={{
             headerShown: false,
           }}

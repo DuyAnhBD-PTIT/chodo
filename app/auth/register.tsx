@@ -20,18 +20,10 @@ import { authService } from "@/services/api/auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
-import axios from "axios";
-
-interface Province {
-  name: string;
-  code: number;
-}
-
-interface District {
-  name: string;
-  code: number;
-}
+import LocationSelector, {
+  Province,
+  District,
+} from "@/components/LocationSelector";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -61,21 +53,17 @@ export default function RegisterScreen() {
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
   const [dateError, setDateError] = useState("");
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [selectedProvinceCode, setSelectedProvinceCode] = useState<number>(0);
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState<number>(0);
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(
+    null
+  );
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(
+    null
+  );
   const [addressError, setAddressError] = useState("");
   const [specificAddress, setSpecificAddress] = useState("");
   const [specificAddressError, setSpecificAddressError] = useState("");
-  // Modal dropdown visibility for web-like picker
-  const [provinceModalVisible, setProvinceModalVisible] = useState(false);
-  const [districtModalVisible, setDistrictModalVisible] = useState(false);
   // Gender selection
   const [gender, setGender] = useState<string>("");
-  // Modal search inputs
-  const [provinceSearch, setProvinceSearch] = useState("");
-  const [districtSearch, setDistrictSearch] = useState("");
 
   // Date input refs for auto-focus
   const dayInputRef = useRef<TextInput>(null);
@@ -97,18 +85,6 @@ export default function RegisterScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fetch provinces on mount
-    fetchProvinces();
-  }, []);
-
-  useEffect(() => {
-    // Fetch districts when province changes
-    if (selectedProvinceCode > 0) {
-      fetchDistricts(selectedProvinceCode);
-    }
-  }, [selectedProvinceCode]);
-
-  useEffect(() => {
     // Animate step transition
     slideAnim.setValue(50);
     Animated.timing(slideAnim, {
@@ -118,27 +94,15 @@ export default function RegisterScreen() {
     }).start();
   }, [currentStep]);
 
-  const fetchProvinces = async () => {
-    try {
-      const response = await axios.get("https://provinces.open-api.vn/api/p/");
-      setProvinces(response.data);
-    } catch (error) {
-      console.error("Error fetching provinces:", error);
-      Alert.alert("Lỗi", "Không thể tải danh sách tỉnh/thành phố");
-    }
+  const handleProvinceChange = (province: Province) => {
+    setSelectedProvince(province);
+    setSelectedDistrict(null); // Reset district when province changes
+    setAddressError("");
   };
 
-  const fetchDistricts = async (provinceCode: number) => {
-    try {
-      const response = await axios.get(
-        `https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`
-      );
-      setDistricts(response.data.districts || []);
-      setSelectedDistrictCode(0); // Reset district when province changes
-    } catch (error) {
-      console.error("Error fetching districts:", error);
-      Alert.alert("Lỗi", "Không thể tải danh sách quận/huyện");
-    }
+  const handleDistrictChange = (district: District) => {
+    setSelectedDistrict(district);
+    setAddressError("");
   };
 
   const validateStep1 = () => {
@@ -212,7 +176,7 @@ export default function RegisterScreen() {
       }
     }
 
-    if (!selectedProvinceCode || !selectedDistrictCode) {
+    if (!selectedProvince || !selectedDistrict) {
       setAddressError("Vui lòng chọn tỉnh/thành phố và quận/huyện");
       isValid = false;
     }
@@ -239,25 +203,19 @@ export default function RegisterScreen() {
         // Call register API
         setIsLoading(true);
         try {
-          const dateOfBirth = `${year}-${month.padStart(2, "0")}-${day.padStart(
+          const DateOfBirth = `${year}-${month.padStart(2, "0")}-${day.padStart(
             2,
             "0"
           )}`;
-
-          const province = provinces.find(
-            (p) => p.code === selectedProvinceCode
-          );
-          const district = districts.find(
-            (d) => d.code === selectedDistrictCode
-          );
-          const address = `${specificAddress}, ${district?.name}, ${province?.name}`;
 
           await authService.register({
             fullName,
             email,
             password,
-            dateOfBirth,
-            address,
+            DateOfBirth,
+            address: specificAddress,
+            TinhThanh: selectedProvince?.name,
+            XaPhuong: selectedDistrict?.name,
             // gender is optional; include if selected
             ...(gender ? { gender } : {}),
           });
@@ -656,203 +614,14 @@ export default function RegisterScreen() {
         </View>
       </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: colors.text }]}>
-          Tỉnh/Thành phố
-        </Text>
-        <Pressable
-          style={[
-            styles.pickerContainer,
-            {
-              borderColor: addressError ? colors.error : colors.border,
-              backgroundColor: colors.card,
-              paddingHorizontal: 12,
-              paddingVertical: 14,
-            },
-          ]}
-          onPress={() => !isLoading && setProvinceModalVisible(true)}
-        >
-          <Text
-            style={{
-              color: selectedProvinceCode ? colors.text : colors.tertiary,
-            }}
-          >
-            {selectedProvinceCode
-              ? provinces.find((p) => p.code === selectedProvinceCode)?.name
-              : "Chọn tỉnh/thành phố"}
-          </Text>
-        </Pressable>
-
-        <Modal
-          visible={provinceModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setProvinceModalVisible(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setProvinceModalVisible(false)}
-          >
-            <View
-              style={[styles.modalContent, { backgroundColor: colors.card }]}
-              pointerEvents="box-none"
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Chọn Tỉnh/Thành phố
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setProvinceModalVisible(false)}
-                >
-                  <Ionicons name="close" size={22} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <TextInput
-                style={[
-                  styles.modalSearch,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Tìm kiếm tỉnh/thành phố..."
-                placeholderTextColor={colors.tertiary}
-                value={provinceSearch}
-                onChangeText={setProvinceSearch}
-              />
-              <FlatList
-                data={provinces.filter((p) =>
-                  p.name.toLowerCase().includes(provinceSearch.toLowerCase())
-                )}
-                keyExtractor={(item) => String(item.code)}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={[
-                      styles.modalItem,
-                      item.code === selectedProvinceCode &&
-                        styles.modalItemSelected,
-                    ]}
-                    onPress={() => {
-                      setSelectedProvinceCode(item.code);
-                      setSelectedDistrictCode(0);
-                      setProvinceModalVisible(false);
-                      if (addressError) setAddressError("");
-                    }}
-                  >
-                    <Text
-                      style={[styles.modalItemText, { color: colors.text }]}
-                    >
-                      {item.name}
-                    </Text>
-                  </Pressable>
-                )}
-              />
-            </View>
-          </Pressable>
-        </Modal>
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: colors.text }]}>Quận/Huyện</Text>
-        <Pressable
-          style={[
-            styles.pickerContainer,
-            {
-              borderColor: addressError ? colors.error : colors.border,
-              backgroundColor: colors.card,
-              paddingHorizontal: 12,
-              paddingVertical: 14,
-            },
-          ]}
-          onPress={() =>
-            !isLoading && districts.length > 0 && setDistrictModalVisible(true)
-          }
-        >
-          <Text
-            style={{
-              color: selectedDistrictCode ? colors.text : colors.tertiary,
-            }}
-          >
-            {selectedDistrictCode
-              ? districts.find((d) => d.code === selectedDistrictCode)?.name
-              : "Chọn quận/huyện"}
-          </Text>
-        </Pressable>
-
-        <Modal
-          visible={districtModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setDistrictModalVisible(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setDistrictModalVisible(false)}
-          >
-            <View
-              style={[styles.modalContent, { backgroundColor: colors.card }]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Chọn Quận/Huyện
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setDistrictModalVisible(false)}
-                >
-                  <Ionicons name="close" size={22} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <TextInput
-                style={[
-                  styles.modalSearch,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Tìm kiếm quận/huyện..."
-                placeholderTextColor={colors.tertiary}
-                value={districtSearch}
-                onChangeText={setDistrictSearch}
-              />
-              <FlatList
-                data={districts.filter((d) =>
-                  d.name.toLowerCase().includes(districtSearch.toLowerCase())
-                )}
-                keyExtractor={(item) => String(item.code)}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={[
-                      styles.modalItem,
-                      item.code === selectedDistrictCode &&
-                        styles.modalItemSelected,
-                    ]}
-                    onPress={() => {
-                      setSelectedDistrictCode(item.code);
-                      setDistrictModalVisible(false);
-                      if (addressError) setAddressError("");
-                    }}
-                  >
-                    <Text
-                      style={[styles.modalItemText, { color: colors.text }]}
-                    >
-                      {item.name}
-                    </Text>
-                  </Pressable>
-                )}
-              />
-            </View>
-          </Pressable>
-        </Modal>
-
-        {addressError ? (
-          <Text style={[styles.errorText, { color: colors.error }]}>
-            {addressError}
-          </Text>
-        ) : null}
-      </View>
+      <LocationSelector
+        selectedProvince={selectedProvince}
+        selectedDistrict={selectedDistrict}
+        onProvinceChange={handleProvinceChange}
+        onDistrictChange={handleDistrictChange}
+        provinceError={addressError}
+        disabled={isLoading}
+      />
 
       <View style={styles.inputContainer}>
         <Text style={[styles.label, { color: colors.text }]}>

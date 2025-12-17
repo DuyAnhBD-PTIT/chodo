@@ -13,19 +13,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import PostsList from "@/components/PostsList";
 import * as categoriesService from "@/services/api/categories";
 import * as usersService from "@/services/api/users";
 import type { Category } from "@/types";
 import type { TopSeller } from "@/services/api/users";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const { unreadCount } = useNotifications();
+  const params = useLocalSearchParams();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -33,11 +35,27 @@ export default function HomeScreen() {
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [isTopSellersLoading, setIsTopSellersLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [postsKey, setPostsKey] = useState(0);
 
   useEffect(() => {
     loadCategories();
     loadTopSellers();
   }, []);
+
+  useEffect(() => {
+    if (
+      params.postDeleted === "true" ||
+      params.postCreated === "true" ||
+      params.postUpdated === "true"
+    ) {
+      setPostsKey((prev) => prev + 1);
+      router.setParams({
+        postDeleted: undefined,
+        postCreated: undefined,
+        postUpdated: undefined,
+      });
+    }
+  }, [params.postDeleted, params.postCreated, params.postUpdated]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -59,13 +77,154 @@ export default function HomeScreen() {
 
   const loadTopSellers = async () => {
     try {
-      const data = await usersService.getTopSellers(3);
+      const data = await usersService.getTopSellers(5);
       setTopSellers(data);
     } catch (error: any) {
       console.error("Load top sellers error:", error);
     } finally {
       setIsTopSellersLoading(false);
     }
+  };
+
+  const renderTopCard = (seller: TopSeller, rank: number) => {
+    const isFirst = rank === 1;
+    const badgeColors: { [key: number]: [string, string] } = {
+      1: ["#FFD700", "#FFA500"],
+      2: ["#C0C0C0", "#A0A0A0"],
+      3: ["#CD7F32", "#8B4513"],
+    };
+    const borderColors = {
+      1: "#FFD700",
+      2: "#C0C0C0",
+      3: "#CD7F32",
+    };
+
+    return (
+      <View
+        style={[
+          styles.topCard,
+          isFirst && styles.topCardFirst,
+          {
+            borderColor: borderColors[rank as 1 | 2 | 3],
+            backgroundColor: colors.card,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={badgeColors[rank as 1 | 2 | 3]}
+          style={styles.rankBadge}
+        >
+          {rank === 1 && (
+            <Ionicons
+              name="trophy"
+              size={12}
+              color="#fff"
+              style={{ marginRight: 2 }}
+            />
+          )}
+          <Text style={styles.rankText}>#{rank}</Text>
+        </LinearGradient>
+
+        <View
+          style={[
+            styles.avatarContainer,
+            isFirst && styles.avatarContainerFirst,
+          ]}
+        >
+          {seller.avatarUrl ? (
+            <Image
+              source={{ uri: seller.avatarUrl }}
+              style={[styles.avatar, isFirst && styles.avatarFirst]}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatarPlaceholder,
+                isFirst && styles.avatarFirst,
+                { backgroundColor: colors.border },
+              ]}
+            >
+              <Ionicons
+                name="person"
+                size={isFirst ? 36 : 24}
+                color={colors.tertiary}
+              />
+            </View>
+          )}
+        </View>
+
+        <Text
+          style={[
+            styles.topCardName,
+            isFirst && styles.topCardNameFirst,
+            { color: colors.text },
+          ]}
+          numberOfLines={1}
+        >
+          {seller.fullName}
+        </Text>
+
+        <View style={styles.statsContainer}>
+          <Text style={[styles.statsText, { color: colors.secondary }]}>
+            {seller.productCount} SP
+          </Text>
+          <View
+            style={[styles.statsDot, { backgroundColor: colors.tertiary }]}
+          />
+          <Text style={[styles.statsText, { color: colors.secondary }]}>
+            {seller.totalViews} lượt xem
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderRunnerUpRow = (seller: TopSeller, rank: number) => {
+    return (
+      <View
+        style={[
+          styles.runnerUpRow,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View style={[styles.runnerUpRank, { backgroundColor: colors.border }]}>
+          <Text style={[styles.runnerUpRankText, { color: colors.text }]}>
+            #{rank}
+          </Text>
+        </View>
+
+        {seller.avatarUrl ? (
+          <Image
+            source={{ uri: seller.avatarUrl }}
+            style={styles.runnerUpAvatar}
+          />
+        ) : (
+          <View
+            style={[
+              styles.runnerUpAvatarPlaceholder,
+              { backgroundColor: colors.border },
+            ]}
+          >
+            <Ionicons name="person" size={20} color={colors.tertiary} />
+          </View>
+        )}
+
+        <View style={styles.runnerUpInfo}>
+          <Text
+            style={[styles.runnerUpName, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {seller.fullName}
+          </Text>
+          <Text style={[styles.runnerUpStats, { color: colors.secondary }]}>
+            {seller.productCount} SP - {seller.totalViews} lượt xem
+          </Text>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -111,7 +270,6 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* Top Sellers Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -139,196 +297,30 @@ export default function HomeScreen() {
           ) : (
             <View
               style={[
-                styles.podiumWrapper,
+                styles.leaderboardWrapper,
                 {
                   backgroundColor: colors.card,
                   borderColor: colors.border,
                 },
               ]}
             >
+              {/* Top 3 Podium Cards */}
               <View style={styles.podiumContainer}>
-                {/* Arrange as: 2nd, 1st, 3rd */}
-                <View style={styles.podiumRow}>
-                  {/* 2nd Place */}
-                  {topSellers[1] && (
-                    <View style={styles.podiumItem}>
-                      <View style={styles.podiumAvatarContainer}>
-                        {topSellers[1].avatarUrl ? (
-                          <Image
-                            source={{ uri: topSellers[1].avatarUrl }}
-                            style={styles.podiumAvatar}
-                          />
-                        ) : (
-                          <View
-                            style={[
-                              styles.podiumAvatarPlaceholder,
-                              { backgroundColor: colors.border },
-                            ]}
-                          >
-                            <Ionicons
-                              name="person"
-                              size={28}
-                              color={colors.tertiary}
-                            />
-                          </View>
-                        )}
-                        <View style={[styles.podiumBadge, styles.secondBadge]}>
-                          <Text style={styles.podiumBadgeText}>2</Text>
-                        </View>
-                      </View>
-                      <Text
-                        style={[styles.podiumName, { color: colors.text }]}
-                        numberOfLines={1}
-                      >
-                        {topSellers[1].fullName}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.podiumStats,
-                          { color: colors.secondary },
-                        ]}
-                      >
-                        {topSellers[1].productCount} SP -{" "}
-                        {topSellers[1].totalViews} Lượt xem
-                      </Text>
-                      <View
-                        style={[
-                          styles.podiumBase,
-                          styles.secondPlace,
-                          {
-                            backgroundColor: colors.card,
-                            borderColor: "#C0C0C0",
-                          },
-                        ]}
-                      >
-                        <Text style={styles.podiumMedal}>🥈</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* 1st Place */}
-                  {topSellers[0] && (
-                    <View style={styles.podiumItem}>
-                      <View style={styles.crownContainer}>
-                        <Text style={styles.crown}>👑</Text>
-                      </View>
-                      <View style={styles.podiumAvatarContainer}>
-                        {topSellers[0].avatarUrl ? (
-                          <Image
-                            source={{ uri: topSellers[0].avatarUrl }}
-                            style={[styles.podiumAvatar, styles.firstAvatar]}
-                          />
-                        ) : (
-                          <View
-                            style={[
-                              styles.podiumAvatarPlaceholder,
-                              styles.firstAvatar,
-                              { backgroundColor: colors.border },
-                            ]}
-                          >
-                            <Ionicons
-                              name="person"
-                              size={32}
-                              color={colors.tertiary}
-                            />
-                          </View>
-                        )}
-                        <View style={[styles.podiumBadge, styles.firstBadge]}>
-                          <Text style={styles.podiumBadgeText}>1</Text>
-                        </View>
-                      </View>
-                      <Text
-                        style={[
-                          styles.podiumName,
-                          styles.firstPlaceName,
-                          { color: colors.text },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {topSellers[0].fullName}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.podiumStats,
-                          { color: colors.secondary },
-                        ]}
-                      >
-                        {topSellers[0].productCount} SP -{" "}
-                        {topSellers[0].totalViews} Lượt xem
-                      </Text>
-                      <View
-                        style={[
-                          styles.podiumBase,
-                          styles.firstPlace,
-                          {
-                            backgroundColor: colors.card,
-                            borderColor: "#FFD700",
-                          },
-                        ]}
-                      >
-                        <Text style={styles.podiumMedal}>🥇</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* 3rd Place */}
-                  {topSellers[2] && (
-                    <View style={styles.podiumItem}>
-                      <View style={styles.podiumAvatarContainer}>
-                        {topSellers[2].avatarUrl ? (
-                          <Image
-                            source={{ uri: topSellers[2].avatarUrl }}
-                            style={styles.podiumAvatar}
-                          />
-                        ) : (
-                          <View
-                            style={[
-                              styles.podiumAvatarPlaceholder,
-                              { backgroundColor: colors.border },
-                            ]}
-                          >
-                            <Ionicons
-                              name="person"
-                              size={28}
-                              color={colors.tertiary}
-                            />
-                          </View>
-                        )}
-                        <View style={[styles.podiumBadge, styles.thirdBadge]}>
-                          <Text style={styles.podiumBadgeText}>3</Text>
-                        </View>
-                      </View>
-                      <Text
-                        style={[styles.podiumName, { color: colors.text }]}
-                        numberOfLines={1}
-                      >
-                        {topSellers[2].fullName}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.podiumStats,
-                          { color: colors.secondary },
-                        ]}
-                      >
-                        {topSellers[2].productCount} SP -{" "}
-                        {topSellers[2].totalViews} Lượt xem
-                      </Text>
-                      <View
-                        style={[
-                          styles.podiumBase,
-                          styles.thirdPlace,
-                          {
-                            backgroundColor: colors.card,
-                            borderColor: "#CD7F32",
-                          },
-                        ]}
-                      >
-                        <Text style={styles.podiumMedal}>🥉</Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
+                {/* 2nd Place */}
+                {topSellers[1] && renderTopCard(topSellers[1], 2)}
+                {/* 1st Place */}
+                {topSellers[0] && renderTopCard(topSellers[0], 1)}
+                {/* 3rd Place */}
+                {topSellers[2] && renderTopCard(topSellers[2], 3)}
               </View>
+
+              {/* Runner-ups (4th & 5th) */}
+              {topSellers.length > 3 && (
+                <View style={styles.runnerUpsContainer}>
+                  {topSellers[3] && renderRunnerUpRow(topSellers[3], 4)}
+                  {topSellers[4] && renderRunnerUpRow(topSellers[4], 5)}
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -351,7 +343,6 @@ export default function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesScroll}
               >
-                {/* Tag "Tất cả" */}
                 <TouchableOpacity
                   style={[
                     styles.categoryTag,
@@ -381,7 +372,6 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Categories từ API */}
                 {categories.map((category) => (
                   <TouchableOpacity
                     key={category._id}
@@ -430,20 +420,12 @@ export default function HomeScreen() {
         </View>
 
         <PostsList
+          key={postsKey}
           myPostsOnly={false}
           categoryId={selectedCategory}
           scrollEnabled={false}
         />
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => router.push("/create-post")}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -514,173 +496,156 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   topSellersLoading: {
-    paddingVertical: 20,
+    paddingVertical: 40,
     alignItems: "center",
   },
-  podiumWrapper: {
+
+  leaderboardWrapper: {
     marginHorizontal: 20,
+    padding: 8,
     borderRadius: 16,
-    borderWidth: 2,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    overflow: "hidden",
   },
   podiumContainer: {
-    paddingVertical: 10,
-  },
-  podiumRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingTop: 20,
+    paddingBottom: 16,
     gap: 8,
   },
-  podiumItem: {
+  topCard: {
     flex: 1,
     alignItems: "center",
-    maxWidth: 110,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+    maxWidth: 90,
   },
-  crownContainer: {
-    marginBottom: 4,
+  topCardFirst: {
+    marginTop: -20,
+    paddingVertical: 18,
+    maxWidth: 140,
+    padding: 14,
   },
-  crown: {
-    fontSize: 24,
-  },
-  podiumAvatarContainer: {
-    position: "relative",
+  rankBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
     marginBottom: 8,
   },
-  podiumAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: "#E0E0E0",
-  },
-  firstAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
-    borderColor: "#FFD700",
-  },
-  podiumAvatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#E0E0E0",
-  },
-  podiumBadge: {
-    position: "absolute",
-    bottom: -4,
-    right: -4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  firstBadge: {
-    backgroundColor: "#FFD700",
-  },
-  secondBadge: {
-    backgroundColor: "#C0C0C0",
-  },
-  thirdBadge: {
-    backgroundColor: "#CD7F32",
-  },
-  podiumBadgeText: {
+  rankText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "700",
   },
-  podiumName: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 2,
-    textAlign: "center",
+  avatarContainer: {
+    marginBottom: 8,
   },
-  firstPlaceName: {
+  avatarContainerFirst: {
+    marginBottom: 10,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+  },
+  avatarFirst: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+  },
+  topCardName: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  topCardNameFirst: {
     fontSize: 15,
     fontWeight: "700",
   },
-  podiumStats: {
-    fontSize: 11,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  podiumBase: {
-    width: "100%",
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    borderWidth: 2,
-    borderBottomWidth: 0,
-    alignItems: "center",
-    paddingTop: 8,
-  },
-  firstPlace: {
-    height: 100,
-  },
-  secondPlace: {
-    height: 80,
-  },
-  thirdPlace: {
-    height: 60,
-  },
-  podiumMedal: {
-    fontSize: 20,
-  },
-  topSellersContainer: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  sellerCard: {
+  statsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  statsText: {
+    fontSize: 9,
+  },
+  statsDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 4,
+  },
+
+  // Runner-up styles
+  runnerUpsContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  runnerUpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderRadius: 10,
     borderWidth: 1,
-    gap: 8,
-  },
-  medal: {
-    fontSize: 24,
-  },
-  sellerContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 10,
   },
-  sellerAvatar: {
+  runnerUpRank: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  runnerUpRankText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  runnerUpAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
   },
-  sellerAvatarPlaceholder: {
+  runnerUpAvatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
-  sellerInfo: {
+  runnerUpInfo: {
     flex: 1,
   },
-  sellerName: {
-    fontSize: 15,
+  runnerUpName: {
+    fontSize: 14,
     fontWeight: "600",
     marginBottom: 2,
   },
-  sellerStats: {
+  runnerUpStats: {
     fontSize: 12,
   },
+
+  // Categories styles
   categoriesWrapper: {
     paddingVertical: 8,
     borderBottomWidth: 1,
@@ -690,8 +655,8 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   loadingContainer: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 20,
+    alignItems: "center",
   },
   categoriesScroll: {
     paddingHorizontal: 20,
@@ -700,29 +665,15 @@ const styles = StyleSheet.create({
   categoryTag: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1.5,
+    borderWidth: 1,
     gap: 6,
+    marginRight: 8,
   },
   categoryTagText: {
     fontSize: 14,
-    fontWeight: "600",
-  },
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    fontWeight: "500",
   },
 });

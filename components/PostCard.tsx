@@ -8,18 +8,21 @@ import * as postsService from "@/services/api/posts";
 
 interface PostCardProps {
   post: Post;
+  from?: "home" | "profile" | "search";
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, from = "home" }: PostCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
 
   const handlePress = async () => {
-    // Gọi API tăng view count
-    await postsService.incrementPostView(post._id);
-    // Navigate to detail page
-    router.push(`/post/${post._id}`);
+    // Only increment view if status is not pending
+    if (post.status !== "pending") {
+      await postsService.incrementPostView(post._id);
+    }
+    // Navigate to detail page with 'from' parameter
+    router.push(`/post/${post._id}?from=${from}`);
   };
 
   const formatPrice = (price: number) => {

@@ -1,6 +1,12 @@
 export interface User {
   _id: string;
   id?: string;
+  avatarUrl?: string;
+  gender: string;
+  DateOfBirth?: string;
+  TinhThanh?: string;
+  XaPhuong?: string;
+  address?: string;
   fullName: string;
   email: string;
   role?: string;

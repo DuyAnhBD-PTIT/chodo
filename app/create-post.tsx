@@ -20,6 +20,10 @@ import * as ImagePicker from "expo-image-picker";
 import * as postsService from "@/services/api/posts";
 import * as categoriesService from "@/services/api/categories";
 import type { PostCondition, Category } from "@/types";
+import LocationSelector, {
+  Province,
+  District,
+} from "@/components/LocationSelector";
 
 export default function CreatePostScreen() {
   const router = useRouter();
@@ -36,7 +40,13 @@ export default function CreatePostScreen() {
     null
   );
   const [categories, setCategories] = useState<Category[]>([]);
-  const [address, setAddress] = useState("");
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(
+    null
+  );
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(
+    null
+  );
+  const [specificAddress, setSpecificAddress] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
@@ -47,6 +57,7 @@ export default function CreatePostScreen() {
   const [quantityError, setQuantityError] = useState("");
   const [categoryError, setCategoryError] = useState("");
   const [imagesError, setImagesError] = useState("");
+  const [locationError, setLocationError] = useState("");
   const [generalError, setGeneralError] = useState("");
 
   useEffect(() => {
@@ -67,10 +78,20 @@ export default function CreatePostScreen() {
     }
   };
 
+  const handleProvinceChange = (province: Province) => {
+    setSelectedProvince(province);
+    setSelectedDistrict(null); // Reset district when province changes
+    setLocationError("");
+  };
+
+  const handleDistrictChange = (district: District) => {
+    setSelectedDistrict(district);
+    setLocationError("");
+  };
+
   const pickImages = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
         setImagesError("Cần cấp quyền truy cập thư viện ảnh để chọn ảnh");
@@ -106,7 +127,9 @@ export default function CreatePostScreen() {
       price.trim() !== "" ||
       quantity !== "1" ||
       selectedCategory !== null ||
-      address.trim() !== "" ||
+      selectedProvince !== null ||
+      selectedDistrict !== null ||
+      specificAddress.trim() !== "" ||
       images.length > 0
     );
   };
@@ -206,6 +229,18 @@ export default function CreatePostScreen() {
       setIsLoading(true);
       setGeneralError("");
 
+      // Build address string from location
+      let fullAddress = "";
+      if (specificAddress) {
+        fullAddress = specificAddress;
+        if (selectedDistrict) {
+          fullAddress += `, ${selectedDistrict.name}`;
+        }
+        if (selectedProvince) {
+          fullAddress += `, ${selectedProvince.name}`;
+        }
+      }
+
       const postData = {
         title: title.trim(),
         description: description.trim(),
@@ -214,12 +249,13 @@ export default function CreatePostScreen() {
         condition,
         categoryId: selectedCategory!._id,
         categoryName: selectedCategory!.name,
-        address: address.trim(),
+        address: fullAddress,
         imageUris: images,
       };
 
       await postsService.createPost(postData);
-      router.back();
+      // Navigate to profile with postCreated flag
+      router.replace("/(tabs)/profile?postCreated=true");
     } catch (error: any) {
       console.error("Create post error:", error);
       setGeneralError(error.message || "Không thể tạo bài đăng");
@@ -523,18 +559,31 @@ export default function CreatePostScreen() {
           </View>
         </View>
 
-        {/* Address */}
+        {/* Location Selection */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>Địa chỉ</Text>
+          <LocationSelector
+            selectedProvince={selectedProvince}
+            selectedDistrict={selectedDistrict}
+            onProvinceChange={handleProvinceChange}
+            onDistrictChange={handleDistrictChange}
+            provinceError={locationError}
+          />
+        </View>
+
+        {/* Specific Address */}
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.text }]}>
+            Địa chỉ cụ thể
+          </Text>
           <TextInput
             style={[
               styles.input,
               { backgroundColor: colors.card, color: colors.text },
             ]}
-            placeholder="Nhập địa chỉ"
+            placeholder="Số nhà, tên đường..."
             placeholderTextColor={colors.tertiary}
-            value={address}
-            onChangeText={setAddress}
+            value={specificAddress}
+            onChangeText={setSpecificAddress}
           />
         </View>
 

@@ -28,7 +28,7 @@ import type { Post } from "@/types";
 const { width } = Dimensions.get("window");
 
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, from } = useLocalSearchParams();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -44,12 +44,20 @@ export default function PostDetailScreen() {
 
   useEffect(() => {
     loadPost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadPost = async () => {
     try {
-      const data = await postsService.getPostById(id as string);
+      // First load to check status without incrementing view
+      const data = await postsService.getPostById(id as string, true);
       setPost(data);
+
+      // Only increment view if status is not pending
+      if (data.status !== "pending") {
+        // Make another call to increment view
+        await postsService.getPostById(id as string, false);
+      }
     } catch (error: any) {
       Alert.alert("Lỗi", error.message || "Không thể tải bài đăng");
       router.back();
@@ -135,8 +143,45 @@ export default function PostDetailScreen() {
   };
 
   const handleEditPost = () => {
-    // Navigate to edit screen with post id
-    router.push(`/edit-post/${id}`);
+    router.push(`/edit-post/${id}?from=${from || "home"}`);
+  };
+
+  const handleDeletePost = () => {
+    Alert.alert(
+      "Xác nhận xóa",
+      "Bạn có chắc chắn muốn xóa bài đăng này? Hành động này không thể hoàn tác.",
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await postsService.deletePost(id as string);
+              Alert.alert("Thành công", "Đã xóa bài đăng thành công", [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    // Navigate back with postDeleted flag
+                    if (from === "profile") {
+                      router.replace("/(tabs)/profile?postDeleted=true");
+                    } else {
+                      router.replace("/(tabs)?postDeleted=true");
+                    }
+                  },
+                },
+              ]);
+            } catch (error: any) {
+              console.error("Delete post error:", error);
+              Alert.alert("Lỗi", error.message || "Không thể xóa bài đăng");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const isOwner = user && post && post.user.id === user._id;
@@ -413,13 +458,21 @@ export default function PostDetailScreen() {
         ]}
       >
         {isOwner ? (
-          <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: colors.primary }]}
-            onPress={handleEditPost}
-          >
-            <Ionicons name="create-outline" size={20} color="#fff" />
-            <Text style={styles.contactButtonText}>Chỉnh sửa bài đăng</Text>
-          </TouchableOpacity>
+          <View style={styles.ownerActions}>
+            <TouchableOpacity
+              style={[styles.deleteButton, { backgroundColor: colors.error }]}
+              onPress={handleDeletePost}
+            >
+              <Ionicons name="trash-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.primary }]}
+              onPress={handleEditPost}
+            >
+              <Ionicons name="create-outline" size={20} color="#fff" />
+              <Text style={styles.actionButtonText}>Chỉnh sửa</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             style={[
@@ -707,6 +760,33 @@ const styles = StyleSheet.create({
   bottomBar: {
     padding: 16,
     borderTopWidth: 1,
+  },
+  ownerActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  editButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  actionButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   contactButton: {
     flexDirection: "row",

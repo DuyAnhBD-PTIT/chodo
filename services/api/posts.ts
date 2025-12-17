@@ -27,9 +27,15 @@ export const getPosts = async (params?: {
 };
 
 // Lấy chi tiết post
-export const getPostById = async (id: string): Promise<Post> => {
+export const getPostById = async (
+  id: string,
+  skipViewIncrement: boolean = false
+): Promise<Post> => {
   try {
-    const response = await api.get<PostDetailResponse>(`/api/posts/${id}`);
+    const params = skipViewIncrement ? { skipView: "true" } : {};
+    const response = await api.get<PostDetailResponse>(`/api/posts/${id}`, {
+      params,
+    });
     console.log("Get post detail response:", response.data);
     return response.data.data;
   } catch (error: any) {

@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
   Switch,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -33,10 +34,7 @@ export default function SettingsScreen() {
   };
 
   const handleEditProfile = () => {
-    Alert.alert(
-      "Thông báo",
-      "Chức năng chỉnh sửa thông tin đang được phát triển"
-    );
+    router.push("/edit-profile");
   };
 
   const handleLogout = async () => {
@@ -88,16 +86,20 @@ export default function SettingsScreen() {
         {/* User Info Section */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <View style={styles.userInfo}>
-            <View
-              style={[
-                styles.avatar,
-                { backgroundColor: colors.primary + "20" },
-              ]}
-            >
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
-              </Text>
-            </View>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: colors.primary + "20" },
+                ]}
+              >
+                <Text style={[styles.avatarText, { color: colors.primary }]}>
+                  {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
+                </Text>
+              </View>
+            )}
             <View style={styles.userDetails}>
               <Text style={[styles.userName, { color: colors.text }]}>
                 {user?.fullName}
@@ -272,8 +274,15 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
     fontSize: 24,

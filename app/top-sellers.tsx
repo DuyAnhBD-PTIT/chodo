@@ -30,7 +30,7 @@ export default function TopSellersScreen() {
 
   const loadTopSellers = async () => {
     try {
-      const data = await usersService.getTopSellers(10);
+      const data = await usersService.getTopSellers(15);
       setTopSellers(data);
     } catch (error: any) {
       console.error("Load top sellers error:", error);

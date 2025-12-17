@@ -19,9 +19,13 @@ import * as ImagePicker from "expo-image-picker";
 import * as postsService from "@/services/api/posts";
 import * as categoriesService from "@/services/api/categories";
 import type { PostCondition, Category, Post } from "@/types";
+import LocationSelector, {
+  Province,
+  District,
+} from "@/components/LocationSelector";
 
 export default function EditPostScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, from } = useLocalSearchParams();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -35,7 +39,13 @@ export default function EditPostScreen() {
     null
   );
   const [categories, setCategories] = useState<Category[]>([]);
-  const [address, setAddress] = useState("");
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(
+    null
+  );
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(
+    null
+  );
+  const [specificAddress, setSpecificAddress] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [originalImages, setOriginalImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<string[]>([]);
@@ -46,6 +56,7 @@ export default function EditPostScreen() {
   useEffect(() => {
     loadCategories();
     loadPost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadPost = async () => {
@@ -57,7 +68,50 @@ export default function EditPostScreen() {
       setRawPrice(data.price.toString());
       setPrice(formatPrice(data.price.toString()));
       setCondition(data.condition);
-      setAddress(data.address || "");
+
+      // Parse address into components
+      if (data.address) {
+        const addressParts = data.address.split(",").map((part) => part.trim());
+        if (addressParts.length >= 3) {
+          // Format: "specific, district, province"
+          setSpecificAddress(addressParts[0]);
+
+          // Load provinces to find matching province and district
+          try {
+            const provincesResponse = await fetch(
+              "https://provinces.open-api.vn/api/p/"
+            );
+            const provincesData = await provincesResponse.json();
+
+            const provinceName = addressParts[addressParts.length - 1];
+            const districtName = addressParts[addressParts.length - 2];
+
+            const province = provincesData.find(
+              (p: Province) => p.name === provinceName
+            );
+            if (province) {
+              setSelectedProvince(province);
+
+              // Load districts
+              const districtResponse = await fetch(
+                `https://provinces.open-api.vn/api/p/${province.code}?depth=2`
+              );
+              const provinceData = await districtResponse.json();
+              const district = provinceData.districts?.find(
+                (d: District) => d.name === districtName
+              );
+              if (district) {
+                setSelectedDistrict(district);
+              }
+            }
+          } catch (error) {
+            console.error("Error loading location data:", error);
+          }
+        } else {
+          // Fallback: set entire address as specific address
+          setSpecificAddress(data.address);
+        }
+      }
 
       // Set images from post
       const imageUrls = data.images.map((img) => img.imageUrl);
@@ -91,6 +145,15 @@ export default function EditPostScreen() {
     } finally {
       setIsCategoriesLoading(false);
     }
+  };
+
+  const handleProvinceChange = (province: Province) => {
+    setSelectedProvince(province);
+    setSelectedDistrict(null);
+  };
+
+  const handleDistrictChange = (district: District) => {
+    setSelectedDistrict(district);
   };
 
   const pickImages = async () => {
@@ -218,6 +281,18 @@ export default function EditPostScreen() {
     try {
       setIsLoading(true);
 
+      // Build address string from location
+      let fullAddress = "";
+      if (specificAddress) {
+        fullAddress = specificAddress;
+        if (selectedDistrict) {
+          fullAddress += `, ${selectedDistrict.name}`;
+        }
+        if (selectedProvince) {
+          fullAddress += `, ${selectedProvince.name}`;
+        }
+      }
+
       const updateData = {
         title: title.trim(),
         description: description.trim(),
@@ -225,7 +300,7 @@ export default function EditPostScreen() {
         condition,
         categoryId: selectedCategory!._id,
         categoryName: selectedCategory!.name,
-        address: address.trim(),
+        address: fullAddress,
         imageUris: images, // Gửi tất cả ảnh hiện tại (cả cũ và mới)
       };
 
@@ -234,7 +309,14 @@ export default function EditPostScreen() {
       Alert.alert("Thành công", "Đã cập nhật bài đăng thành công", [
         {
           text: "OK",
-          onPress: () => router.back(),
+          onPress: () => {
+            // Navigate back to the original screen with postUpdated flag
+            if (from === "profile") {
+              router.replace("/(tabs)/profile?postUpdated=true");
+            } else {
+              router.replace("/(tabs)?postUpdated=true");
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -486,18 +568,30 @@ export default function EditPostScreen() {
           </View>
         </View>
 
-        {/* Address */}
+        {/* Location Selection */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>Địa chỉ</Text>
+          <LocationSelector
+            selectedProvince={selectedProvince}
+            selectedDistrict={selectedDistrict}
+            onProvinceChange={handleProvinceChange}
+            onDistrictChange={handleDistrictChange}
+          />
+        </View>
+
+        {/* Specific Address */}
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.text }]}>
+            Địa chỉ cụ thể
+          </Text>
           <TextInput
             style={[
               styles.input,
               { backgroundColor: colors.card, color: colors.text },
             ]}
-            placeholder="Nhập địa chỉ"
+            placeholder="Số nhà, tên đường..."
             placeholderTextColor={colors.tertiary}
-            value={address}
-            onChangeText={setAddress}
+            value={specificAddress}
+            onChangeText={setSpecificAddress}
           />
         </View>
 

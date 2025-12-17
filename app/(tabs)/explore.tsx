@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
@@ -173,20 +174,25 @@ export default function ChatScreen() {
     return date.toLocaleDateString("vi-VN");
   };
 
-  const getOtherMember = (conversation: Conversation) => {
-    if (!conversation.members || conversation.members.length === 0) {
-      return null;
-    }
-    return conversation.members.find((member) => member.id !== user?._id);
-  };
-
   const renderConversationItem = ({ item }: { item: Conversation }) => {
     const post = posts[item.postId];
-    const otherMember = getOtherMember(item);
+    const otherUser = item.otherUser;
     const lastMessage = lastMessages[item._id];
     const unreadCount = unreadCounts[item._id] || 0;
     // Only show unread if last message is from other user
     const hasUnread = unreadCount > 0 && lastMessage?.sender.id !== user?._id;
+
+    // Determine message display text
+    const getMessageDisplay = () => {
+      if (!lastMessage) return "Bắt đầu cuộc hội thoại";
+
+      const isMyMessage = lastMessage.sender.id === user?._id;
+      const senderName = isMyMessage
+        ? "Bạn"
+        : otherUser?.fullName || "Người dùng";
+
+      return `${senderName}: ${lastMessage.content}`;
+    };
 
     return (
       <TouchableOpacity
@@ -209,30 +215,75 @@ export default function ChatScreen() {
         }}
         activeOpacity={0.7}
       >
-        <View style={styles.avatarContainer}>
-          <View
-            style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}
-          >
-            <Ionicons name="chatbubbles" size={24} color={colors.primary} />
-          </View>
-          {hasUnread && (
+        {/* Overlapping Avatars Container */}
+        <View style={styles.avatarsWrapper}>
+          {/* Product Image - Bottom Left */}
+          {post?.images && post.images.length > 0 ? (
+            <Image
+              source={{ uri: post.images[0].imageUrl }}
+              style={[styles.productAvatar, { borderColor: colors.background }]}
+              resizeMode="cover"
+            />
+          ) : (
             <View
-              style={[styles.unreadBadge, { backgroundColor: colors.error }]}
+              style={[
+                styles.productAvatarPlaceholder,
+                {
+                  backgroundColor: colors.border,
+                  borderColor: colors.background,
+                },
+              ]}
             >
-              <Text style={styles.unreadBadgeText}>
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </Text>
+              <Ionicons
+                name="image-outline"
+                size={18}
+                color={colors.tertiary}
+              />
             </View>
           )}
+
+          {/* User Avatar - Top Right (overlapping) */}
+          <View style={styles.userAvatarWrapper}>
+            {otherUser?.avatarUrl ? (
+              <Image
+                source={{ uri: otherUser?.avatarUrl }}
+                style={[styles.userAvatar, { borderColor: colors.background }]}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.userAvatarPlaceholder,
+                  {
+                    backgroundColor: colors.primary + "20",
+                    borderColor: colors.background,
+                  },
+                ]}
+              >
+                <Ionicons name="person" size={20} color={colors.primary} />
+              </View>
+            )}
+            {hasUnread && (
+              <View
+                style={[styles.unreadBadge, { backgroundColor: colors.error }]}
+              >
+                <Text style={styles.unreadBadgeText}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
+        {/* Conversation Info */}
         <View style={styles.conversationContent}>
+          {/* Post Title - Title 1 */}
           <View style={styles.conversationHeader}>
             <Text
               style={[
-                styles.conversationTitle,
+                styles.postTitleMain,
                 { color: colors.text },
-                hasUnread && styles.conversationTitleUnread,
+                hasUnread && styles.postTitleMainUnread,
               ]}
               numberOfLines={1}
             >
@@ -245,26 +296,29 @@ export default function ChatScreen() {
             </Text>
           </View>
 
-          {lastMessage ? (
-            <Text
-              style={[
-                styles.lastMessage,
-                { color: hasUnread ? colors.text : colors.secondary },
-                hasUnread && styles.lastMessageUnread,
-              ]}
-              numberOfLines={1}
-            >
-              {lastMessage.sender.id === user?._id && "Bạn: "}
-              {lastMessage.content}
-            </Text>
-          ) : (
-            <Text
-              style={[styles.conversationSubtitle, { color: colors.secondary }]}
-              numberOfLines={1}
-            >
-              {post ? `${post.price.toLocaleString("vi-VN")} đ` : "Đang tải..."}
-            </Text>
-          )}
+          {/* User Name - Title 2 */}
+          <Text
+            style={[
+              styles.userName,
+              { color: colors.secondary },
+              hasUnread && styles.userNameUnread,
+            ]}
+            numberOfLines={1}
+          >
+            {otherUser?.fullName || "Người dùng"}
+          </Text>
+
+          {/* Last Message with Sender Name */}
+          <Text
+            style={[
+              styles.lastMessage,
+              { color: hasUnread ? colors.text : colors.secondary },
+              hasUnread && styles.lastMessageUnread,
+            ]}
+            numberOfLines={2}
+          >
+            {getMessageDisplay()}
+          </Text>
         </View>
 
         <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
@@ -388,17 +442,53 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
     gap: 12,
     borderBottomWidth: 1,
   },
-  avatarContainer: {
+  avatarsWrapper: {
+    width: 60,
+    height: 60,
     position: "relative",
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  productAvatar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    overflow: "hidden",
+  },
+  productAvatarPlaceholder: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  userAvatarWrapper: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    overflow: "hidden",
+  },
+  userAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -406,46 +496,56 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     borderWidth: 2,
     borderColor: "#FFF",
   },
   unreadBadgeText: {
     color: "#FFF",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
   },
   conversationContent: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   conversationHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 8,
+    marginBottom: 2,
   },
-  conversationTitle: {
+  postTitleMain: {
     fontSize: 16,
     fontWeight: "600",
     flex: 1,
   },
-  conversationTitleUnread: {
+  postTitleMainUnread: {
     fontWeight: "700",
   },
   conversationDate: {
-    fontSize: 12,
+    fontSize: 11,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  userNameUnread: {
+    fontWeight: "600",
   },
   conversationSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
   },
   lastMessage: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
   },
   lastMessageUnread: {
     fontWeight: "600",

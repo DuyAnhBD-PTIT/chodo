@@ -135,6 +135,7 @@ export default function HomeScreen() {
             <Image
               source={{ uri: seller.avatarUrl }}
               style={[styles.avatar, isFirst && styles.avatarFirst]}
+              resizeMode="cover"
             />
           ) : (
             <View
@@ -200,6 +201,7 @@ export default function HomeScreen() {
           <Image
             source={{ uri: seller.avatarUrl }}
             style={styles.runnerUpAvatar}
+            resizeMode="cover"
           />
         ) : (
           <View
@@ -522,12 +524,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
     borderWidth: 2,
-    maxWidth: 90,
+    maxWidth: 110,
   },
   topCardFirst: {
     marginTop: -20,
     paddingVertical: 18,
-    maxWidth: 140,
+    maxWidth: 150,
     padding: 14,
   },
   rankBadge: {
@@ -555,6 +557,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 2,
     borderColor: "#E0E0E0",
+    overflow: "hidden",
   },
   avatarFirst: {
     width: 76,
@@ -625,6 +628,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    overflow: "hidden",
   },
   runnerUpAvatarPlaceholder: {
     width: 40,

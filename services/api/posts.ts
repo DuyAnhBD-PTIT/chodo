@@ -184,3 +184,22 @@ export const incrementPostView = async (id: string): Promise<void> => {
     // Không throw error để không ảnh hưởng đến UX
   }
 };
+
+// Xác nhận giao dịch bán hàng
+export const confirmSell = async (
+  postId: string,
+  buyerId: string,
+  quantity: number
+): Promise<ApiResponse> => {
+  try {
+    const response = await api.post<ApiResponse>(`/api/posts/${postId}/sell`, {
+      buyerId,
+      quantity,
+    });
+    console.log("Confirm sell response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Confirm sell error:", error);
+    throw error.response?.data || error;
+  }
+};

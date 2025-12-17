@@ -12,6 +12,8 @@ import {
   Alert,
   Keyboard,
   Pressable,
+  Modal,
+  Image,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -45,6 +47,10 @@ export default function ConversationDetailScreen() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [transactionQuantity, setTransactionQuantity] = useState("1");
 
   // Dùng Ref để lưu ID hiện tại, giúp hàm callback socket luôn đọc được ID mới nhất
   const currentIdRef = useRef(id);
@@ -142,9 +148,10 @@ export default function ConversationDetailScreen() {
 
   const loadConversationData = async () => {
     try {
-      const currentConv = await conversationsService.getConversationById(
-        id as string
-      );
+      // Lấy danh sách conversations để có otherUser data
+      const allConversations = await conversationsService.getConversations();
+      const currentConv = allConversations.find((conv) => conv._id === id);
+
       if (currentConv) {
         setConversation(currentConv);
 
@@ -156,6 +163,13 @@ export default function ConversationDetailScreen() {
         setPost(postData);
         setMessages(messagesData);
 
+        // Kiểm tra xem người dùng hiện tại có phải là người bán không
+        if (postData && postData.user && postData.user.id === user?._id) {
+          setIsSeller(true);
+        } else {
+          setIsSeller(false);
+        }
+
         // Scroll to bottom on initial load
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: false });
@@ -163,9 +177,10 @@ export default function ConversationDetailScreen() {
         }, 100);
 
         // Đánh dấu đã đọc
-        const otherMember = currentConv.members.find((m) => m.id !== user?._id);
-        if (otherMember) {
-          socketService.emit("mark_read", { senderId: otherMember.id });
+        if (currentConv.otherUser?.id) {
+          socketService.emit("mark_read", {
+            senderId: currentConv.otherUser.id,
+          });
         }
       }
     } catch (error) {
@@ -198,14 +213,13 @@ export default function ConversationDetailScreen() {
   const handleSendMessage = async () => {
     if (!message.trim() || isSending || !conversation) return;
 
-    const otherMember = conversation.members.find((m) => m.id !== user?._id);
     const contentToSend = message.trim();
 
     try {
       setIsSending(true);
 
       const response = await messagesService.sendMessage({
-        receiverId: otherMember?.id || "",
+        receiverId: conversation?.otherUser.id || "",
         content: contentToSend,
         conversationId: conversation._id,
       });
@@ -235,6 +249,89 @@ export default function ConversationDetailScreen() {
         });
       }
     }
+  };
+
+  const handleOpenActionMenu = () => {
+    setShowActionMenu(true);
+  };
+
+  const handleCloseActionMenu = () => {
+    setShowActionMenu(false);
+  };
+
+  const handleOpenTransactionModal = () => {
+    setShowActionMenu(false);
+    setTransactionQuantity("1");
+    setShowTransactionModal(true);
+  };
+
+  const handleCloseTransactionModal = () => {
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có chắc chắn muốn thoát khỏi xác nhận giao dịch?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Thoát",
+          style: "destructive",
+          onPress: () => {
+            setShowTransactionModal(false);
+            setTransactionQuantity("1");
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmTransaction = async () => {
+    if (!conversation || !post) return;
+
+    const quantity = parseInt(transactionQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      Alert.alert("Lỗi", "Vui lòng nhập số lượng hợp lệ");
+      return;
+    }
+
+    if (quantity > post.quantity) {
+      Alert.alert("Lỗi", `Số lượng không được vượt quá ${post.quantity}`);
+      return;
+    }
+
+    Alert.alert(
+      "Xác nhận giao dịch",
+      `Bạn có chắc chắn muốn xác nhận bán ${quantity} sản phẩm cho ${conversation.otherUser.fullName}?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xác nhận",
+          onPress: async () => {
+            try {
+              await postsService.confirmSell(
+                post._id,
+                conversation.otherUser.id,
+                quantity
+              );
+              setShowTransactionModal(false);
+              setTransactionQuantity("1");
+              Alert.alert("Thành công", "Giao dịch đã được xác nhận", [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    // Reload conversation to get updated post data
+                    loadConversationData();
+                  },
+                },
+              ]);
+            } catch (error: any) {
+              Alert.alert(
+                "Lỗi",
+                error.message || "Không thể xác nhận giao dịch"
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -482,6 +579,16 @@ export default function ConversationDetailScreen() {
               },
             ]}
           >
+            {/* Plus Button for Seller */}
+            {isSeller && (
+              <TouchableOpacity
+                onPress={handleOpenActionMenu}
+                style={styles.plusButton}
+              >
+                <Ionicons name="add-circle" size={28} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
             <TextInput
               ref={textInputRef}
               style={[
@@ -513,6 +620,257 @@ export default function ConversationDetailScreen() {
               />
             </Pressable>
           </View>
+
+          {/* Action Menu Modal */}
+          <Modal
+            visible={showActionMenu}
+            transparent
+            animationType="fade"
+            onRequestClose={handleCloseActionMenu}
+          >
+            <Pressable
+              style={styles.modalOverlay}
+              onPress={handleCloseActionMenu}
+            >
+              <View
+                style={[
+                  styles.actionMenu,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <TouchableOpacity
+                  style={styles.actionMenuItem}
+                  onPress={handleOpenTransactionModal}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.actionMenuText, { color: colors.text }]}>
+                    Xác nhận giao dịch
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Modal>
+
+          {/* Transaction Confirmation Modal */}
+          <Modal
+            visible={showTransactionModal}
+            transparent
+            animationType="slide"
+            onRequestClose={handleCloseTransactionModal}
+          >
+            <View style={styles.modalOverlay}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                style={styles.modalContent}
+              >
+                <View
+                  style={[
+                    styles.transactionModal,
+                    { backgroundColor: colors.background },
+                  ]}
+                >
+                  {/* Header */}
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      Xác nhận giao dịch
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleCloseTransactionModal}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView
+                    style={styles.modalBody}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {/* Product Image */}
+                    {post && post.images && post.images.length > 0 && (
+                      <Image
+                        source={{ uri: post.images[0].imageUrl }}
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
+                    )}
+
+                    {/* Product Info */}
+                    <View style={styles.infoSection}>
+                      <Text
+                        style={[styles.productTitle, { color: colors.text }]}
+                      >
+                        {post?.title}
+                      </Text>
+                      <Text
+                        style={[styles.productPrice, { color: colors.primary }]}
+                      >
+                        {post?.price.toLocaleString("vi-VN")} đ
+                      </Text>
+                      <Text
+                        style={[
+                          styles.productStock,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        Số lượng còn lại: {post?.quantity}
+                      </Text>
+                    </View>
+
+                    {/* Buyer Info */}
+                    <View
+                      style={[
+                        styles.infoSection,
+                        styles.userInfoSection,
+                        { backgroundColor: colors.card },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.sectionLabel,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        Người mua
+                      </Text>
+                      <View style={styles.userInfo}>
+                        {conversation?.otherUser?.avatarUrl ? (
+                          <Image
+                            source={{
+                              uri: conversation.otherUser.avatarUrl,
+                            }}
+                            style={styles.userAvatar}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.userAvatarPlaceholder,
+                              { backgroundColor: colors.border },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={24}
+                              color={colors.tertiary}
+                            />
+                          </View>
+                        )}
+                        <Text style={[styles.userName, { color: colors.text }]}>
+                          {conversation?.otherUser?.fullName || "Người mua"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Seller Info */}
+                    <View
+                      style={[
+                        styles.infoSection,
+                        styles.userInfoSection,
+                        { backgroundColor: colors.card },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.sectionLabel,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        Người bán
+                      </Text>
+                      <View style={styles.userInfo}>
+                        {user && user.avatarUrl ? (
+                          <Image
+                            source={{ uri: user.avatarUrl }}
+                            style={styles.userAvatar}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.userAvatarPlaceholder,
+                              { backgroundColor: colors.border },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={24}
+                              color={colors.tertiary}
+                            />
+                          </View>
+                        )}
+                        <Text style={[styles.userName, { color: colors.text }]}>
+                          {user?.fullName || "Người bán"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Quantity Input */}
+                    <View style={styles.infoSection}>
+                      <Text
+                        style={[
+                          styles.sectionLabel,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        Số lượng bán
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.quantityInput,
+                          {
+                            backgroundColor: colors.card,
+                            color: colors.text,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                        value={transactionQuantity}
+                        onChangeText={setTransactionQuantity}
+                        keyboardType="number-pad"
+                        placeholder="Nhập số lượng"
+                        placeholderTextColor={colors.tertiary}
+                      />
+                    </View>
+                  </ScrollView>
+
+                  {/* Footer Buttons */}
+                  <View style={styles.modalFooter}>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        styles.cancelButton,
+                        { borderColor: colors.border },
+                      ]}
+                      onPress={handleCloseTransactionModal}
+                    >
+                      <Text
+                        style={[
+                          styles.cancelButtonText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        Hủy
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        styles.confirmButton,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      onPress={handleConfirmTransaction}
+                    >
+                      <Text style={styles.confirmButtonText}>Xác nhận</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </>
@@ -553,6 +911,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: 1,
     gap: 8,
+  },
+  plusButton: {
+    padding: 4,
   },
   textInput: {
     flex: 1,
@@ -609,6 +970,138 @@ const styles = StyleSheet.create({
   badgeText: {
     color: "#FFF",
     fontSize: 11,
+    fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  actionMenu: {
+    marginHorizontal: 16,
+    marginBottom: 100,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  actionMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+  },
+  actionMenuText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalContent: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  transactionModal: {
+    borderRadius: 16,
+    maxHeight: "85%",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.1)",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  modalBody: {
+    padding: 16,
+  },
+  productImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  infoSection: {
+    marginBottom: 16,
+  },
+  productTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  productPrice: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  productStock: {
+    fontSize: 14,
+  },
+  userInfoSection: {
+    padding: 12,
+    borderRadius: 8,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  userAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  quantityInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.1)",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButton: {
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  confirmButton: {},
+  confirmButtonText: {
+    color: "#FFF",
+    fontSize: 16,
     fontWeight: "700",
   },
 });

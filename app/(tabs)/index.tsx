@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
+  useWindowDimensions,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
@@ -28,6 +30,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { unreadCount } = useNotifications();
   const params = useLocalSearchParams();
+  const { width: screenWidth } = useWindowDimensions();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -89,146 +92,124 @@ export default function HomeScreen() {
 
   const renderTopCard = (seller: TopSeller, rank: number) => {
     const isFirst = rank === 1;
-    const badgeColors: { [key: number]: [string, string] } = {
-      1: ["#FFD700", "#FFA500"],
-      2: ["#C0C0C0", "#A0A0A0"],
-      3: ["#CD7F32", "#8B4513"],
-    };
-    const borderColors = {
-      1: "#FFD700",
-      2: "#C0C0C0",
-      3: "#CD7F32",
-    };
+    const scale = Math.min(screenWidth / 375, 1);
+    const avatarSize = isFirst
+      ? Math.floor(64 * scale)
+      : Math.floor(48 * scale);
+    const cardWidth = isFirst
+      ? Math.floor(100 * scale)
+      : Math.floor(80 * scale);
+    const cardPadding = Math.floor(14 * scale);
 
     return (
       <View
         style={[
           styles.topCard,
-          isFirst && styles.topCardFirst,
           {
-            borderColor: borderColors[rank as 1 | 2 | 3],
-            backgroundColor: colors.card,
+            width: cardWidth,
+            paddingVertical: isFirst ? Math.floor(20 * scale) : cardPadding,
+            backgroundColor: isFirst ? colors.primary + "15" : colors.card,
+            borderColor: isFirst ? colors.primary : colors.border,
           },
         ]}
       >
-        <LinearGradient
-          colors={badgeColors[rank as 1 | 2 | 3]}
-          style={styles.rankBadge}
-        >
-          {rank === 1 && (
-            <Ionicons
-              name="trophy"
-              size={12}
-              color="#fff"
-              style={{ marginRight: 2 }}
-            />
-          )}
-          <Text style={styles.rankText}>#{rank}</Text>
-        </LinearGradient>
+        {isFirst && (
+          <View style={styles.crown}>
+            <Ionicons name="trophy" size={22} color="#FACC15" />
+          </View>
+        )}
 
-        <View
-          style={[
-            styles.avatarContainer,
-            isFirst && styles.avatarContainerFirst,
-          ]}
-        >
-          {seller.avatarUrl ? (
-            <Image
-              source={{ uri: seller.avatarUrl }}
-              style={[styles.avatar, isFirst && styles.avatarFirst]}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.avatarPlaceholder,
-                isFirst && styles.avatarFirst,
-                { backgroundColor: colors.border },
-              ]}
-            >
-              <Ionicons
-                name="person"
-                size={isFirst ? 36 : 24}
-                color={colors.tertiary}
-              />
-            </View>
-          )}
-        </View>
-
-        <Text
-          style={[
-            styles.topCardName,
-            isFirst && styles.topCardNameFirst,
-            { color: colors.text },
-          ]}
-          numberOfLines={1}
-        >
-          {seller.fullName}
-        </Text>
-
-        <View style={styles.statsContainer}>
-          <Text style={[styles.statsText, { color: colors.secondary }]}>
-            {seller.productCount} SP
-          </Text>
-          <View
-            style={[styles.statsDot, { backgroundColor: colors.tertiary }]}
-          />
-          <Text style={[styles.statsText, { color: colors.secondary }]}>
-            {seller.totalViews} lượt xem
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderRunnerUpRow = (seller: TopSeller, rank: number) => {
-    return (
-      <View
-        style={[
-          styles.runnerUpRow,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <View style={[styles.runnerUpRank, { backgroundColor: colors.border }]}>
-          <Text style={[styles.runnerUpRankText, { color: colors.text }]}>
-            #{rank}
-          </Text>
-        </View>
+        <Text style={[styles.rank, { color: colors.primary }]}>#{rank}</Text>
 
         {seller.avatarUrl ? (
           <Image
             source={{ uri: seller.avatarUrl }}
-            style={styles.runnerUpAvatar}
-            resizeMode="cover"
+            style={{
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+              marginBottom: 6,
+            }}
           />
         ) : (
           <View
-            style={[
-              styles.runnerUpAvatarPlaceholder,
-              { backgroundColor: colors.border },
-            ]}
+            style={{
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+              backgroundColor: colors.border,
+              justifyContent: "center",
+              alignItems: "center",
+              marginBottom: 6,
+            }}
           >
-            <Ionicons name="person" size={20} color={colors.tertiary} />
+            <Ionicons
+              name="person"
+              size={isFirst ? 36 : 24}
+              color={colors.secondary}
+            />
           </View>
         )}
 
-        <View style={styles.runnerUpInfo}>
-          <Text
-            style={[styles.runnerUpName, { color: colors.text }]}
-            numberOfLines={1}
-          >
-            {seller.fullName}
-          </Text>
-          <Text style={[styles.runnerUpStats, { color: colors.secondary }]}>
-            {seller.productCount} SP - {seller.totalViews} lượt xem
-          </Text>
-        </View>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+          {seller.fullName}
+        </Text>
+
+        <Text style={[styles.score, { color: colors.secondary }]}>
+          {seller.totalViews} lượt xem
+        </Text>
       </View>
     );
   };
+
+  const renderRunnerUp = (seller: TopSeller, rank: number) => (
+    <View
+      style={[
+        styles.runnerRow,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
+      <Text style={[styles.runnerRank, { color: colors.text }]}>#{rank}</Text>
+
+      {seller.avatarUrl ? (
+        <Image
+          source={{ uri: seller.avatarUrl }}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            marginRight: 8,
+          }}
+        />
+      ) : (
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: colors.border,
+            justifyContent: "center",
+            alignItems: "center",
+            marginRight: 8,
+          }}
+        >
+          <Ionicons name="person" size={20} color={colors.secondary} />
+        </View>
+      )}
+
+      <View style={{ flex: 1 }}>
+        <Text
+          style={[styles.runnerName, { color: colors.text }]}
+          numberOfLines={1}
+        >
+          {seller.fullName}
+        </Text>
+        <Text style={[styles.runnerStats, { color: colors.secondary }]}>
+          {seller.productCount} SP • {seller.totalViews} lượt xem
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView
@@ -259,6 +240,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Main ScrollView */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -273,58 +255,41 @@ export default function HomeScreen() {
           />
         }
       >
-        <View style={styles.section}>
+        {/* Leaderboard Section */}
+        <View style={styles.leaderboardSection}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Bảng xếp hạng
             </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/top-sellers")}
-              style={styles.viewAllButton}
-            >
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>
-                Xem tất cả
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
           </View>
 
           {isTopSellersLoading ? (
-            <View style={styles.topSellersLoading}>
-              <ActivityIndicator size="small" color={colors.primary} />
-            </View>
+            <ActivityIndicator style={{ marginVertical: 40 }} />
           ) : (
-            <View
-              style={[
-                styles.leaderboardWrapper,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                },
-              ]}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => router.push("/top-sellers")}
             >
-              {/* Top 3 Podium Cards */}
-              <View style={styles.podiumContainer}>
-                {/* 2nd Place */}
-                {topSellers[1] && renderTopCard(topSellers[1], 2)}
-                {/* 1st Place */}
-                {topSellers[0] && renderTopCard(topSellers[0], 1)}
-                {/* 3rd Place */}
-                {topSellers[2] && renderTopCard(topSellers[2], 3)}
-              </View>
-
-              {/* Runner-ups (4th & 5th) */}
-              {topSellers.length > 3 && (
-                <View style={styles.runnerUpsContainer}>
-                  {topSellers[3] && renderRunnerUpRow(topSellers[3], 4)}
-                  {topSellers[4] && renderRunnerUpRow(topSellers[4], 5)}
+              <View
+                style={[
+                  styles.leaderboardWrapper,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.podium}>
+                  {topSellers[1] && renderTopCard(topSellers[1], 2)}
+                  {topSellers[0] && renderTopCard(topSellers[0], 1)}
+                  {topSellers[2] && renderTopCard(topSellers[2], 3)}
                 </View>
-              )}
-            </View>
+
+                <View style={styles.runnerList}>
+                  {topSellers[3] && renderRunnerUp(topSellers[3], 4)}
+                </View>
+              </View>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -478,6 +443,9 @@ const styles = StyleSheet.create({
   section: {
     paddingVertical: 12,
   },
+  leaderboardSection: {
+    paddingBottom: 16,
+  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -504,8 +472,8 @@ const styles = StyleSheet.create({
   },
 
   leaderboardWrapper: {
-    marginHorizontal: 20,
-    padding: 8,
+    marginHorizontal: 16,
+    padding: 16,
     borderRadius: 16,
     borderWidth: 1,
     overflow: "hidden",
@@ -518,20 +486,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     gap: 8,
-  },
-  topCard: {
-    flex: 1,
-    alignItems: "center",
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-    maxWidth: 110,
-  },
-  topCardFirst: {
-    marginTop: -20,
-    paddingVertical: 18,
-    maxWidth: 130,
-    padding: 14,
   },
   rankBadge: {
     flexDirection: "row",
@@ -679,4 +633,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
+  podium: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+
+  crown: {
+    position: "absolute",
+    top: -18,
+    padding: 6,
+    borderRadius: 999,
+    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#FACC15",
+  },
+
+  topCard: {
+    flex: 1,
+    maxWidth: 110,
+    alignItems: "center",
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 14,
+    borderWidth: 1,
+  },
+
+  rank: { fontWeight: "700", marginBottom: 6 },
+  name: { fontWeight: "600", fontSize: 13 },
+  score: { fontSize: 12 },
+
+  runnerList: { marginTop: 12 },
+
+  runnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+
+  runnerRank: { width: 32, fontWeight: "700", textAlign: "center" },
+  runnerName: { fontWeight: "600" },
+  runnerStats: { fontSize: 12 },
 });

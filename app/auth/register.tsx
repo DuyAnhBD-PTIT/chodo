@@ -182,7 +182,7 @@ export default function RegisterScreen() {
     }
 
     if (!specificAddress) {
-      setSpecificAddressError("Vui lòng nhập địa chỉ cụ thể");
+      setSpecificAddressError("Vui lòng nhập Địa chỉ");
       isValid = false;
     }
 
@@ -624,9 +624,7 @@ export default function RegisterScreen() {
       />
 
       <View style={styles.inputContainer}>
-        <Text style={[styles.label, { color: colors.text }]}>
-          Địa chỉ cụ thể
-        </Text>
+        <Text style={[styles.label, { color: colors.text }]}>Địa chỉ</Text>
         <TextInput
           style={[
             styles.input,

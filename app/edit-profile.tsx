@@ -357,9 +357,7 @@ export default function EditProfileScreen() {
 
         {/* Address */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Địa chỉ cụ thể
-          </Text>
+          <Text style={[styles.label, { color: colors.text }]}>Địa chỉ</Text>
           <TextInput
             style={[
               styles.input,

@@ -90,7 +90,8 @@ export default function LocationSelector({
       const response = await axios.get(
         `https://provinces.open-api.vn/api/v2/p/${provinceCode}?depth=2`
       );
-      setDistricts(response.data.districts || []);
+      // API mới trả về danh sách quận/huyện trong field 'wards'
+      setDistricts(response.data.wards || []);
     } catch (error) {
       console.error("Error loading districts:", error);
     } finally {

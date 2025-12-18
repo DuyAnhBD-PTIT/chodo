@@ -15,6 +15,8 @@ import {
   Modal,
   StatusBar,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -1007,7 +1009,7 @@ export default function PostDetailScreen() {
                     <Text
                       style={[
                         styles.ratingProductPrice,
-                        { color: colors.primary },
+                        { color: colors.error },
                       ]}
                     >
                       {formatPrice(post.price)}

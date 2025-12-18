@@ -84,29 +84,31 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* User Info Section */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <View style={styles.userInfo}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View
-                style={[
-                  styles.avatarPlaceholder,
-                  { backgroundColor: colors.primary + "20" },
-                ]}
-              >
-                <Text style={[styles.avatarText, { color: colors.primary }]}>
-                  {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
+        <View style={styles.sectionContainer}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <View style={styles.userInfo}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View
+                  style={[
+                    styles.avatarPlaceholder,
+                    { backgroundColor: colors.primary + "20" },
+                  ]}
+                >
+                  <Text style={[styles.avatarText, { color: colors.primary }]}>
+                    {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.userDetails}>
+                <Text style={[styles.userName, { color: colors.text }]}>
+                  {user?.fullName}
+                </Text>
+                <Text style={[styles.userEmail, { color: colors.secondary }]}>
+                  {user?.email}
                 </Text>
               </View>
-            )}
-            <View style={styles.userDetails}>
-              <Text style={[styles.userName, { color: colors.text }]}>
-                {user?.fullName}
-              </Text>
-              <Text style={[styles.userEmail, { color: colors.secondary }]}>
-                {user?.email}
-              </Text>
             </View>
           </View>
         </View>

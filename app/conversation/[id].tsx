@@ -722,7 +722,7 @@ export default function ConversationDetailScreen() {
                         {post?.title}
                       </Text>
                       <Text
-                        style={[styles.productPrice, { color: colors.primary }]}
+                        style={[styles.productPrice, { color: colors.error }]}
                       >
                         {post?.price.toLocaleString("vi-VN")} đ
                       </Text>

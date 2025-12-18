@@ -544,7 +544,13 @@ export default function ConversationDetailScreen() {
                               name={msg.isRead ? "checkmark-done" : "checkmark"}
                               size={14}
                               color={
-                                msg.isRead ? "#4CAF50" : "rgba(255,255,255,0.7)"
+                                msg.isRead
+                                  ? colorScheme === "dark"
+                                    ? "#7CFFB2"
+                                    : "#22c55e" // bright green for dark mode, green for light
+                                  : colorScheme === "dark"
+                                  ? "#FFF"
+                                  : "#667eea" // white for dark mode, primary for light
                               }
                               style={{ marginLeft: 4 }}
                             />

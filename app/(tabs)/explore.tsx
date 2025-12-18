@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
@@ -15,6 +16,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Swipeable from "react-native-gesture-handler/Swipeable";
 import * as conversationsService from "@/services/api/conversations";
 import * as postsService from "@/services/api/posts";
 import * as messagesService from "@/services/api/messages";
@@ -203,6 +206,66 @@ export default function ChatScreen() {
     return date.toLocaleDateString("vi-VN");
   };
 
+  const handleDeleteConversation = async (conversation: Conversation) => {
+    const otherUserName = conversation.otherUser?.fullName || "người dùng khác";
+
+    Alert.alert(
+      "Xóa cuộc hội thoại",
+      `Bạn có chắc chắn muốn xóa cuộc hội thoại cho bạn và ${otherUserName}? Hành động này không thể hoàn tác.`,
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await conversationsService.deleteConversation(conversation._id);
+
+              // Xóa khỏi danh sách local
+              setConversations((prev) =>
+                prev.filter((conv) => conv._id !== conversation._id)
+              );
+
+              // Xóa related data
+              setUnreadCounts((prev) => {
+                const { [conversation._id]: _, ...rest } = prev;
+                return rest;
+              });
+              setLastMessages((prev) => {
+                const { [conversation._id]: _, ...rest } = prev;
+                return rest;
+              });
+
+              Alert.alert("Thành công", "Cuộc hội thoại đã được xóa");
+            } catch (error: any) {
+              console.error("Delete conversation error:", error);
+              Alert.alert(
+                "Lỗi",
+                error.message || "Không thể xóa cuộc hội thoại lúc này"
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderRightActions = (item: Conversation) => {
+    return (
+      <TouchableOpacity
+        style={[styles.deleteAction, { backgroundColor: colors.error }]}
+        onPress={() => handleDeleteConversation(item)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="trash-outline" size={24} color="#FFF" />
+        <Text style={styles.deleteActionText}>Xóa</Text>
+      </TouchableOpacity>
+    );
+  };
+
   const renderConversationItem = ({ item }: { item: Conversation }) => {
     const post = posts[item.postId];
     const otherUser = item.otherUser;
@@ -224,128 +287,141 @@ export default function ChatScreen() {
     };
 
     return (
-      <TouchableOpacity
-        style={[
-          styles.conversationItem,
-          {
-            backgroundColor: hasUnread ? colors.primary + "08" : colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-        onPress={() => {
-          // Navigate to conversation - marking as read will be handled in conversation detail screen
-          router.push(`/conversation/${item._id}`);
-        }}
-        activeOpacity={0.7}
-      >
-        {/* Overlapping Avatars Container */}
-        <View style={styles.avatarsWrapper}>
-          {/* Product Image - Bottom Left */}
-          {post?.images && post.images.length > 0 ? (
-            <Image
-              source={{ uri: post.images[0].imageUrl }}
-              style={[styles.productAvatar, { borderColor: colors.background }]}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.productAvatarPlaceholder,
-                {
-                  backgroundColor: colors.border,
-                  borderColor: colors.background,
-                },
-              ]}
-            >
-              <Ionicons
-                name="image-outline"
-                size={18}
-                color={colors.tertiary}
-              />
-            </View>
-          )}
-
-          {/* User Avatar - Top Right (overlapping) */}
-          <View style={styles.userAvatarWrapper}>
-            {otherUser?.avatarUrl ? (
+      <Swipeable renderRightActions={() => renderRightActions(item)}>
+        <TouchableOpacity
+          style={[
+            styles.conversationItem,
+            {
+              backgroundColor: hasUnread ? colors.primary + "08" : colors.card,
+              borderBottomColor: colors.border,
+            },
+          ]}
+          onPress={() => {
+            // Navigate to conversation - marking as read will be handled in conversation detail screen
+            router.push(`/conversation/${item._id}`);
+          }}
+          activeOpacity={0.7}
+        >
+          {/* Overlapping Avatars Container */}
+          <View style={styles.avatarsWrapper}>
+            {/* Product Image - Bottom Left */}
+            {post?.images && post.images.length > 0 ? (
               <Image
-                source={{ uri: otherUser?.avatarUrl }}
-                style={[styles.userAvatar, { borderColor: colors.background }]}
+                source={{ uri: post.images[0].imageUrl }}
+                style={[
+                  styles.productAvatar,
+                  { borderColor: colors.background },
+                ]}
                 resizeMode="cover"
               />
             ) : (
               <View
                 style={[
-                  styles.userAvatarPlaceholder,
+                  styles.productAvatarPlaceholder,
                   {
-                    backgroundColor: colors.primary + "20",
+                    backgroundColor: colors.border,
                     borderColor: colors.background,
                   },
                 ]}
               >
-                <Ionicons name="person" size={20} color={colors.primary} />
+                <Ionicons
+                  name="image-outline"
+                  size={18}
+                  color={colors.tertiary}
+                />
               </View>
             )}
-            {hasUnread && (
-              <View
-                style={[styles.unreadBadge, { backgroundColor: colors.error }]}
-              >
-                <Text style={styles.unreadBadgeText}>
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
 
-        {/* Conversation Info */}
-        <View style={styles.conversationContent}>
-          {/* Post Title - Title 1 */}
-          <View style={styles.conversationHeader}>
+            {/* User Avatar - Top Right (overlapping) */}
+            <View style={styles.userAvatarWrapper}>
+              {otherUser?.avatarUrl ? (
+                <Image
+                  source={{ uri: otherUser?.avatarUrl }}
+                  style={[
+                    styles.userAvatar,
+                    { borderColor: colors.background },
+                  ]}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.userAvatarPlaceholder,
+                    {
+                      backgroundColor: colors.primary + "20",
+                      borderColor: colors.background,
+                    },
+                  ]}
+                >
+                  <Ionicons name="person" size={20} color={colors.primary} />
+                </View>
+              )}
+              {hasUnread && (
+                <View
+                  style={[
+                    styles.unreadBadge,
+                    { backgroundColor: colors.error },
+                  ]}
+                >
+                  <Text style={styles.unreadBadgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Conversation Info */}
+          <View style={styles.conversationContent}>
+            {/* Post Title - Title 1 */}
+            <View style={styles.conversationHeader}>
+              <Text
+                style={[
+                  styles.postTitleMain,
+                  { color: colors.text },
+                  hasUnread && styles.postTitleMainUnread,
+                ]}
+                numberOfLines={1}
+              >
+                {post?.title || "Bài đăng"}
+              </Text>
+              <Text
+                style={[styles.conversationDate, { color: colors.tertiary }]}
+              >
+                {lastMessage
+                  ? formatDate(lastMessage.createdAt)
+                  : formatDate(item.updatedAt)}
+              </Text>
+            </View>
+
+            {/* User Name - Title 2 */}
             <Text
               style={[
-                styles.postTitleMain,
-                { color: colors.text },
-                hasUnread && styles.postTitleMainUnread,
+                styles.userName,
+                { color: colors.secondary },
+                hasUnread && styles.userNameUnread,
               ]}
               numberOfLines={1}
             >
-              {post?.title || "Bài đăng"}
+              {otherUser?.fullName || "Người dùng"}
             </Text>
-            <Text style={[styles.conversationDate, { color: colors.tertiary }]}>
-              {lastMessage
-                ? formatDate(lastMessage.createdAt)
-                : formatDate(item.updatedAt)}
+
+            {/* Last Message with Sender Name */}
+            <Text
+              style={[
+                styles.lastMessage,
+                { color: hasUnread ? colors.text : colors.secondary },
+                hasUnread && styles.lastMessageUnread,
+              ]}
+              numberOfLines={2}
+            >
+              {getMessageDisplay()}
             </Text>
           </View>
 
-          {/* User Name - Title 2 */}
-          <Text
-            style={[
-              styles.userName,
-              { color: colors.secondary },
-              hasUnread && styles.userNameUnread,
-            ]}
-            numberOfLines={1}
-          >
-            {otherUser?.fullName || "Người dùng"}
-          </Text>
-
-          {/* Last Message with Sender Name */}
-          <Text
-            style={[
-              styles.lastMessage,
-              { color: hasUnread ? colors.text : colors.secondary },
-              hasUnread && styles.lastMessageUnread,
-            ]}
-            numberOfLines={2}
-          >
-            {getMessageDisplay()}
-          </Text>
-        </View>
-
-        <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
-      </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 
@@ -383,36 +459,38 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["top"]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Tin nhắn
-        </Text>
-      </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={["top"]}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Tin nhắn
+          </Text>
+        </View>
 
-      <FlatList
-        data={conversations}
-        renderItem={renderConversationItem}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={
-          conversations.length === 0
-            ? styles.emptyContainer
-            : styles.listContent
-        }
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-      />
-    </SafeAreaView>
+        <FlatList
+          data={conversations}
+          renderItem={renderConversationItem}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={
+            conversations.length === 0
+              ? styles.emptyContainer
+              : styles.listContent
+          }
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        />
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -572,5 +650,17 @@ const styles = StyleSheet.create({
   },
   lastMessageUnread: {
     fontWeight: "600",
+  },
+  deleteAction: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    paddingHorizontal: 12,
+  },
+  deleteActionText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
   },
 });

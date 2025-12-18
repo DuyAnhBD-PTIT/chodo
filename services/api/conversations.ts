@@ -62,3 +62,14 @@ export const getConversationById = async (
     throw error.response?.data || error;
   }
 };
+
+// Xóa conversation
+export const deleteConversation = async (id: string): Promise<void> => {
+  try {
+    const response = await api.delete(`/api/conversations/${id}`);
+    console.log("Delete conversation response:", response.data);
+  } catch (error: any) {
+    console.error("Delete conversation error:", error);
+    throw error.response?.data || error;
+  }
+};

@@ -6,7 +6,7 @@ const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
 class SocketService {
   private socket: Socket | null = null;
   private connectionPromise: Promise<void> | null = null;
-  private listeners = new Map<string, (...args: any[]) => void>();
+  private listeners = new Map<string, Set<(...args: any[]) => void>>();
 
   /**
    * Connect socket, đảm bảo token sẵn sàng trước khi connect
@@ -62,26 +62,38 @@ class SocketService {
   }
 
   /**
-   * Attach event, tránh detach listener liên tục
+   * Attach event, hỗ trợ nhiều listeners cho cùng 1 event
    */
   on(event: string, callback: (...args: any[]) => void) {
     this.connect().then(() => {
-      const oldCallback = this.listeners.get(event);
-      if (oldCallback) this.socket?.off(event, oldCallback);
+      // Lấy hoặc tạo Set callbacks cho event này
+      let callbacks = this.listeners.get(event);
+      if (!callbacks) {
+        callbacks = new Set();
+        this.listeners.set(event, callbacks);
+      }
 
+      // Thêm callback mới vào Set
+      callbacks.add(callback);
+
+      // Register với socket (socket.io tự động handle multiple listeners)
       this.socket?.on(event, callback);
-      this.listeners.set(event, callback);
     });
   }
 
   /**
-   * Remove event listener
+   * Remove một listener cụ thể cho event
    */
-  off(event: string) {
-    const cb = this.listeners.get(event);
-    if (cb) {
-      this.socket?.off(event, cb);
-      this.listeners.delete(event);
+  off(event: string, callback: (...args: any[]) => void) {
+    const callbacks = this.listeners.get(event);
+    if (callbacks) {
+      callbacks.delete(callback);
+      this.socket?.off(event, callback);
+
+      // Nếu không còn callback nào, xóa entry
+      if (callbacks.size === 0) {
+        this.listeners.delete(event);
+      }
     }
   }
 
@@ -90,6 +102,13 @@ class SocketService {
    */
   disconnect() {
     if (this.socket) {
+      // Remove tất cả listeners
+      this.listeners.forEach((callbacks, event) => {
+        callbacks.forEach((callback) => {
+          this.socket?.off(event, callback);
+        });
+      });
+
       this.socket.disconnect();
       this.socket = null;
       this.connectionPromise = null;

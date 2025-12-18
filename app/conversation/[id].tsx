@@ -114,6 +114,18 @@ export default function ConversationDetailScreen() {
             setShowScrollButton(true);
           }
         }
+
+        // ✅ Tự động mark as read khi nhận tin nhắn từ người khác
+        if (messageData.sender.id !== user?._id && conversation) {
+          messagesService
+            .markMessagesAsRead(conversation._id)
+            .then(() => {
+              console.log("✅ Auto marked message as read");
+            })
+            .catch((err) => {
+              console.error("Error auto marking as read:", err);
+            });
+        }
       } else {
         console.log("❌ Tin nhắn thuộc hội thoại khác, bỏ qua.");
       }
@@ -141,10 +153,10 @@ export default function ConversationDetailScreen() {
     socketService.on("messages_read", handleMessagesRead);
 
     return () => {
-      socketService.off("new_message");
-      socketService.off("messages_read");
+      socketService.off("new_message", handleNewMessage);
+      socketService.off("messages_read", handleMessagesRead);
     };
-  }, [id, user?._id, isAtBottom]);
+  }, [id, user?._id, isAtBottom, conversation]);
 
   const loadConversationData = async () => {
     try {

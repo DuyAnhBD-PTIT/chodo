@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import * as conversationsService from "@/services/api/conversations";
 import * as postsService from "@/services/api/posts";
 import * as messagesService from "@/services/api/messages";
@@ -41,6 +42,14 @@ export default function ChatScreen() {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Reload conversations khi screen được focus lại (quay lại từ conversation detail)
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[Explore] Screen focused - reloading conversations");
+      loadConversations();
+    }, [])
+  );
 
   // Socket listener for real-time message updates
   useEffect(() => {
@@ -80,10 +89,30 @@ export default function ChatScreen() {
       });
     };
 
+    const handleMessagesRead = (data: {
+      conversationId: string;
+      messageIds: string[];
+    }) => {
+      console.log("[Chat List] Messages marked as read:", data);
+      console.log("[Chat List] Current unread counts before:", unreadCounts);
+
+      // Reset unread count cho conversation này
+      setUnreadCounts((prev) => {
+        const updated = {
+          ...prev,
+          [data.conversationId]: 0,
+        };
+        console.log("[Chat List] Updated unread counts:", updated);
+        return updated;
+      });
+    };
+
     socketService.on("new_message", handleNewMessage);
+    socketService.on("messages_read", handleMessagesRead);
 
     return () => {
-      socketService.off("new_message");
+      socketService.off("new_message", handleNewMessage);
+      socketService.off("messages_read", handleMessagesRead);
     };
   }, [user?._id]);
 
@@ -203,20 +232,8 @@ export default function ChatScreen() {
             borderBottomColor: colors.border,
           },
         ]}
-        onPress={async () => {
-          // Clear unread count when entering conversation
-          if (hasUnread) {
-            setUnreadCounts((prev) => ({
-              ...prev,
-              [item._id]: 0,
-            }));
-          }
-          // Mark messages as read via API
-          try {
-            await messagesService.markMessagesAsRead(item._id);
-          } catch (error) {
-            console.error("Error marking messages as read:", error);
-          }
+        onPress={() => {
+          // Navigate to conversation - marking as read will be handled in conversation detail screen
           router.push(`/conversation/${item._id}`);
         }}
         activeOpacity={0.7}

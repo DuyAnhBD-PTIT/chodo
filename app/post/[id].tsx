@@ -975,165 +975,174 @@ export default function PostDetailScreen() {
           <View
             style={[styles.ratingModal, { backgroundColor: colors.background }]}
           >
-            {/* Header */}
-            <View style={styles.ratingModalHeader}>
-              <Text style={[styles.ratingModalTitle, { color: colors.text }]}>
-                Viết đánh giá
-              </Text>
-              <TouchableOpacity onPress={handleCloseRatingModal}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.ratingModalBody}>
-              {/* Product Info */}
-              {post && (
-                <View style={styles.ratingProductInfo}>
-                  {post.images && post.images.length > 0 && (
-                    <Image
-                      source={{ uri: post.images[0].imageUrl }}
-                      style={styles.ratingProductImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                  <View style={styles.ratingProductDetails}>
-                    <Text
-                      style={[
-                        styles.ratingProductTitle,
-                        { color: colors.text },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {post.title}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.ratingProductPrice,
-                        { color: colors.error },
-                      ]}
-                    >
-                      {formatPrice(post.price)}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Star Rating */}
-              <View style={styles.ratingStarsSection}>
-                <Text
-                  style={[styles.ratingSectionLabel, { color: colors.text }]}
-                >
-                  Đánh giá của bạn
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              keyboardVerticalOffset={80}
+            >
+              {/* Header */}
+              <View style={styles.ratingModalHeader}>
+                <Text style={[styles.ratingModalTitle, { color: colors.text }]}>
+                  Viết đánh giá
                 </Text>
-                <View style={styles.ratingStarsContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity
-                      key={star}
-                      onPress={() => setRatingStars(star)}
-                      style={styles.ratingStarButton}
-                    >
-                      <Ionicons
-                        name={star <= ratingStars ? "star" : "star-outline"}
-                        size={40}
-                        color="#FFB800"
+                <TouchableOpacity onPress={handleCloseRatingModal}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.ratingModalBody}>
+                {/* Product Info */}
+                {post && (
+                  <View style={styles.ratingProductInfo}>
+                    {post.images && post.images.length > 0 && (
+                      <Image
+                        source={{ uri: post.images[0].imageUrl }}
+                        style={styles.ratingProductImage}
+                        resizeMode="cover"
                       />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Text
-                  style={[styles.ratingStarsLabel, { color: colors.secondary }]}
-                >
-                  {
-                    ["Rất tệ", "Tệ", "Bình thường", "Tốt", "Xuất sắc"][
-                      ratingStars - 1
-                    ]
-                  }
-                </Text>
-              </View>
-
-              {/* Comment */}
-              <View style={styles.ratingCommentSection}>
-                <Text
-                  style={[styles.ratingSectionLabel, { color: colors.text }]}
-                >
-                  Nhận xét (tối thiểu 10 ký tự)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.ratingCommentInput,
-                    {
-                      backgroundColor: colors.card,
-                      color: colors.text,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  value={ratingComment}
-                  onChangeText={setRatingComment}
-                  placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm và người bán..."
-                  placeholderTextColor={colors.tertiary}
-                  multiline
-                  numberOfLines={6}
-                  textAlignVertical="top"
-                />
-                <Text
-                  style={[
-                    styles.ratingCharCount,
-                    {
-                      color:
-                        ratingComment.length >= 10
-                          ? colors.success
-                          : colors.tertiary,
-                    },
-                  ]}
-                >
-                  {ratingComment.length}/500 ký tự
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* Footer */}
-            <View style={styles.ratingModalFooter}>
-              <TouchableOpacity
-                style={[
-                  styles.ratingModalButton,
-                  styles.ratingCancelButton,
-                  { borderColor: colors.border },
-                ]}
-                onPress={handleCloseRatingModal}
-                disabled={isSubmittingRating}
-              >
-                <Text
-                  style={[
-                    styles.ratingCancelButtonText,
-                    { color: colors.text },
-                  ]}
-                >
-                  Hủy
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.ratingModalButton,
-                  styles.ratingSubmitButton,
-                  { backgroundColor: colors.primary },
-                  (isSubmittingRating || ratingComment.trim().length < 10) && {
-                    opacity: 0.5,
-                  },
-                ]}
-                onPress={handleSubmitRating}
-                disabled={
-                  isSubmittingRating || ratingComment.trim().length < 10
-                }
-              >
-                {isSubmittingRating ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.ratingSubmitButtonText}>
-                    Gửi đánh giá
-                  </Text>
+                    )}
+                    <View style={styles.ratingProductDetails}>
+                      <Text
+                        style={[
+                          styles.ratingProductTitle,
+                          { color: colors.text },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {post.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.ratingProductPrice,
+                          { color: colors.error },
+                        ]}
+                      >
+                        {formatPrice(post.price)}
+                      </Text>
+                    </View>
+                  </View>
                 )}
-              </TouchableOpacity>
-            </View>
+
+                {/* Star Rating */}
+                <View style={styles.ratingStarsSection}>
+                  <Text
+                    style={[styles.ratingSectionLabel, { color: colors.text }]}
+                  >
+                    Đánh giá của bạn
+                  </Text>
+                  <View style={styles.ratingStarsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <TouchableOpacity
+                        key={star}
+                        onPress={() => setRatingStars(star)}
+                        style={styles.ratingStarButton}
+                      >
+                        <Ionicons
+                          name={star <= ratingStars ? "star" : "star-outline"}
+                          size={40}
+                          color="#FFB800"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text
+                    style={[
+                      styles.ratingStarsLabel,
+                      { color: colors.secondary },
+                    ]}
+                  >
+                    {
+                      ["Rất tệ", "Tệ", "Bình thường", "Tốt", "Xuất sắc"][
+                        ratingStars - 1
+                      ]
+                    }
+                  </Text>
+                </View>
+
+                {/* Comment */}
+                <View style={styles.ratingCommentSection}>
+                  <Text
+                    style={[styles.ratingSectionLabel, { color: colors.text }]}
+                  >
+                    Nhận xét (tối thiểu 10 ký tự)
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.ratingCommentInput,
+                      {
+                        backgroundColor: colors.card,
+                        color: colors.text,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    value={ratingComment}
+                    onChangeText={setRatingComment}
+                    placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm và người bán..."
+                    placeholderTextColor={colors.tertiary}
+                    multiline
+                    numberOfLines={6}
+                    textAlignVertical="top"
+                  />
+                  <Text
+                    style={[
+                      styles.ratingCharCount,
+                      {
+                        color:
+                          ratingComment.length >= 10
+                            ? colors.success
+                            : colors.tertiary,
+                      },
+                    ]}
+                  >
+                    {ratingComment.length}/500 ký tự
+                  </Text>
+                </View>
+              </ScrollView>
+
+              {/* Footer */}
+              <View style={styles.ratingModalFooter}>
+                <TouchableOpacity
+                  style={[
+                    styles.ratingModalButton,
+                    styles.ratingCancelButton,
+                    { borderColor: colors.border },
+                  ]}
+                  onPress={handleCloseRatingModal}
+                  disabled={isSubmittingRating}
+                >
+                  <Text
+                    style={[
+                      styles.ratingCancelButtonText,
+                      { color: colors.text },
+                    ]}
+                  >
+                    Hủy
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.ratingModalButton,
+                    styles.ratingSubmitButton,
+                    { backgroundColor: colors.primary },
+                    (isSubmittingRating ||
+                      ratingComment.trim().length < 10) && {
+                      opacity: 0.5,
+                    },
+                  ]}
+                  onPress={handleSubmitRating}
+                  disabled={
+                    isSubmittingRating || ratingComment.trim().length < 10
+                  }
+                >
+                  {isSubmittingRating ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.ratingSubmitButtonText}>
+                      Gửi đánh giá
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>
